@@ -20,7 +20,7 @@ async function api(path,method='GET',body,server){   // server (optional) = act 
   if(r.status===403&&!server&&/not a member of that server/i.test(d.error||'')){   // kicked / server deleted / never joined: move to a server I am in, else to the hub
     const l=await fetch('/api/servers',{credentials:'same-origin'}).then(x=>x.json()).catch(()=>({})),f=(l.servers||[])[0],cur=localStorage.getItem('stb_sv')||'cepalco';
     if(f&&f.id!==cur){f.id==='cepalco'?localStorage.removeItem('stb_sv'):localStorage.setItem('stb_sv',f.id);location.reload()}
-    else if(!/(^|\/)(cross|admin-accounts)(\.html)?$/.test(location.pathname))location.replace('cross.html');
+    else if(!/(^|\/)(cross|admin-accounts)?(\.html)?$/.test(location.pathname))location.replace('cross.html');
     throw new Error(d.error)}
   if(!r.ok){const e=new Error(d.error||(r.status>=500?'The server had a problem. Please try again in a moment.':'Something went wrong ('+r.status+').'));e.status=r.status;throw e}
   return d;
@@ -39,7 +39,7 @@ if(!/(^|\/)(login|register)(\.html)?$/.test(location.pathname)){
   window.__authT=Date.now();window.__authP=api('/api/me').catch(()=>null);
   window.__authP.then(me=>{
     if(!me)return location.replace('login.html');
-    if(me.user&&me.user.noServer&&!/(^|\/)(cross|admin-accounts)(\.html)?$/.test(location.pathname))return location.replace('cross.html');   // not in any server yet
+    if(me.user&&me.user.noServer&&!/(^|\/)(cross|admin-accounts)?(\.html)?$/.test(location.pathname))return location.replace('cross.html');   // not in any server yet
     g.remove();
   });
 }

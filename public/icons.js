@@ -76,7 +76,7 @@
   }
   function fix(t){
     var p=t.parentElement;if(!p)return;
-    if(p.tagName==='OPTION'){t.nodeValue=t.nodeValue.replace(RE,'').replace(/^\s+/,'');return}
+    if(p.tagName==='OPTION'){var o=t.nodeValue,n=o.replace(RE,'').replace(/^\s+/,'');RE.lastIndex=0;if(n!==o)t.nodeValue=n;return}   /* only write when changed: an identical write re-fires the observer forever and froze the page */
     if(p.closest(SKIP))return;
     var v=t.nodeValue;RE.lastIndex=0;if(!RE.test(v))return;RE.lastIndex=0;
     var f=document.createDocumentFragment(),last=0,m;

@@ -1,6 +1,6 @@
 /* Discord-style server rail (left, hover to expand) + create/join/settings dialogs. Needs auth.js (api()). */
 (function(){
-const DEF='cepalco',KEY='stb_sv',cur=()=>localStorage.getItem(KEY)||DEF,ONX=/cross\.html$/.test(location.pathname);
+const DEF='cepalco',KEY='stb_sv',cur=()=>localStorage.getItem(KEY)||DEF,ONX=/(^|\/)(cross(\.html)?)?$/.test(location.pathname)   /* the hub is also served at "/" (Netlify rewrite) */;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ROLE={admin:'Head',host:'Supervisor',staff:'Staff'};
 const css=`

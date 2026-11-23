@@ -1,3 +1,11 @@
+## v2.17.3 — Server calendar could not be opened from the hub
+- **Bug:** the hub is served at `/` (Netlify rewrite to `cross.html`), but `servers.js` only recognised `cross.html`, so clicking a server in the rail from `/` did nothing or just reloaded the hub, and the server calendar never opened. Now `/` counts as the hub (`servers.js`, `auth.js`). Service-worker cache bumped to `cc-v3`.
+
+## v2.17.2 — Admin "All servers" freeze fixed
+- **Bug:** `icons.js` rewrote every `<option>` text node even when unchanged; each identical write re-triggered its own MutationObserver, so any page containing a `<select>` with options froze in an endless loop. Admin → All servers (owner dropdown on every non-default server) showed Loading… / hung, and no button worked.
+- **Fix:** write only when the text actually changes. Service-worker cache bumped (`cc-v2`) so everyone gets the new script.
+- Checked in a headless browser: all pages (Calendar, Cross-server, Users, Overview, Admin accounts, Admin servers) in the default and a created server load with no errors; create / rename / new code / make owner / invite code / turn off code / open / manage people all work.
+
 # 2.17.0 – 15-minute file attachments (group chat + private messages) and full deployment mode
 - **📎 Attach.** A paperclip next to the emoji button in every channel and in every private-message window. Pick a file; anything typed in the box is sent as its caption. The file shows in the chat with a live countdown ("14 min left") and, **15 minutes after it was shared, it is gone**: the server refuses the download (HTTP 410) and deletes it, the chat swaps it for "Expired", and a scheduled function (`netlify/functions/sweep.mjs`, every 15 min) deletes any file nobody asked for again. Deleting the message deletes the file at once.
 - **Who can open a file.** Group-chat files: members of that server who can see that channel (role channels stay private to their role). Private files: only the two friends (Heads cannot open them either). Files are always sent with `nosniff` + `sandbox` CSP; pictures are recognised by their bytes (not by the claimed name) and shown inline, everything else is download-only. Web pages, scripts and programs (`.html .svg .js .exe .bat ...`) are refused.
