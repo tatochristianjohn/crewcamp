@@ -1,0 +1,9 @@
+node_modules/
+.netlify/
+.env
+*.db
+*.db-shm
+*.db-wal
+secret_key.txt
+venv/
+.env.deploy
