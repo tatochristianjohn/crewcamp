@@ -151,3 +151,7 @@ See README ("Profile posts"). New: `posts.js`, `posts.css`; changed: `api.mjs` (
 - `auth.js`: `friendly(e)` turns raw JS errors into plain messages; offline/online banner; network failures are reported as "offline"; 5xx get a calm message. Toasts across pages use it.
 - PWA: `manifest.webmanifest`, `sw.js` (network-first, offline fallback, never touches /api), PNG icons, head tags on every page.
 - Alerts: the bell asks for notification permission once; new notifications show a system notification while the app is open in a background tab/window. True push while fully closed needs a push service (VAPID keys + a subscription store in api.mjs), not included.
+
+# 2.17.1 – icons + no-server chat
+- **Friends** and **My team** icons in the server menu were white on a transparent tile (invisible). They now sit on the same soft tile as the other menu icons (`servers.js`).
+- **No server, no group chat:** accounts that belong to no server no longer get the floating Group chat dock (hidden, never polls). Friends and private messages still work. Joining a server brings the chat back on the next page load (`chat.js`, `chat.css`).

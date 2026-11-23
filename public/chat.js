@@ -396,8 +396,9 @@
   /* ---------- polling ---------- */
   const delay = () => { const d = delay0(); return callLive() && d > 25000 ? 25000 : d; };   // in a call the tab is in the background: keep telling the server I am still in it
   const delay0 = () => fails ? Math.min(30000, 4000 * 2 ** Math.min(fails, 3)) : document.hidden ? POLL.hidden : (S.open || (window.__cwF && window.__cwF.active())) ? (S.hot < HOT_MS ? POLL.hot : POLL.open) : POLL.minimized;
-  function schedule(ms) { clearTimeout(timer); timer = setTimeout(poll, ms == null ? delay() : ms); }
+  function schedule(ms) { clearTimeout(timer); if (S.none) return; timer = setTimeout(poll, ms == null ? delay() : ms); }
   async function poll() {
+    if (S.none) return;
     if (busy) return;
     busy = true; clearTimeout(timer);
     const q = new URLSearchParams();
@@ -558,6 +559,13 @@
     refresh: ms => schedule(ms == null ? 0 : ms), hot: () => { S.hot = 0; }, closeWin: () => setOpen(false), openWin: () => setOpen(true, true), isOpen: () => S.open };
 
   /* ---------- go ---------- */
+  /* An account that is in NO server has no group chat: hide the dock and never poll. Friends / private messages stay available. */
+  (window.__authP || Promise.resolve(null)).then(me => {
+    if (!(me && me.user && me.user.noServer)) return;
+    S.none = true; clearTimeout(timer);
+    root.classList.add('cw-none'); document.body.classList.remove('cw-on');
+    win.hidden = true; mem.hidden = true; $('#cwPill').hidden = true;
+  });
   win.hidden = !S.open; $('#cwPill').hidden = S.open;
   if (S.open) applyPos();
   renderLog(); renderAll();

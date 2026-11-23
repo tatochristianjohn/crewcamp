@@ -39,6 +39,8 @@ const css=`
 body.hasrail{padding-left:72px}
 .svb{position:absolute;left:30px;top:0;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#dc2626;color:#fff;font:800 .65rem/18px system-ui,sans-serif;text-align:center;border:2px solid var(--panel,#fff);box-sizing:content-box}
 .svb[hidden]{display:none}
+.svi.fr i,#svTm i{background:var(--soft,rgba(127,127,127,.2));border:1px solid var(--bd,#ddd);color:inherit;font-size:1.2rem}
+.svi.fr i .i,#svTm i .i{width:1.35em;height:1.35em;vertical-align:0}
 .svi.fr.on i{background:var(--pri,#2f66b8);color:var(--pi,#fff)}
 #svTab{display:none}
 @media(max-width:700px){

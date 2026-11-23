@@ -186,3 +186,6 @@ body.cw-drag{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .cw-att.img>small{padding:0 4px 2px}
 .cwf-b .cw-attimg img{max-width:min(230px,100%)}
 @media(prefers-reduced-motion:reduce){.cw-att.img.loading .cw-attimg{animation:none}}
+
+/* no server -> no group chat (friends + private messages still work) */
+.cw.cw-none .cw-pill,.cw.cw-none .cw-win,.cw.cw-none .cw-mem{display:none!important}
