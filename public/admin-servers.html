@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin · All servers · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>.sv{border:1px solid var(--bd);border-radius:14px;padding:12px 14px;margin:0 0 12px;background:var(--soft)}
+.sv h3{margin:0 0 4px;font-size:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sv .meta{font-size:.78rem;opacity:.75;margin:0 0 8px;line-height:1.5}
+.sv .acts{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.sv .acts .btn,.sv .acts select{flex:0 1 auto}
+.sv table{width:100%;border-collapse:collapse;font-size:.78rem}.sv th,.sv td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--bd)}.sv th{font-size:.62rem;text-transform:uppercase;opacity:.6}
+.bd{font-size:.62rem;font-weight:800;border-radius:6px;padding:2px 7px;background:var(--panel);border:1px solid var(--bd)}
+.code{font:800 .85rem ui-monospace,monospace;letter-spacing:.14em}.err{color:#dc2626;font-size:.8rem;min-height:1em}
+.cr{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.cr input{min-width:0;flex:1 1 160px;padding:9px 11px;border-radius:10px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit}
+.danger{color:#dc2626}.sv .acts select{max-width:100%}.sv h3{word-break:break-word}.sv .meta{overflow-wrap:anywhere}main.panel{padding-bottom:84px}@media(max-width:700px){.cr{display:grid;grid-template-columns:1fr}.cr .btn{width:100%}.sv .acts .btn,.sv .acts select{flex:1 1 100%;text-align:center}}
+</style><script src="icons.js" defer></script>
+</head>
+<body class="th-white">
+<script src="auth.js"></script>
+<script src="servers.js" defer></script>
+<header class="panel top"><div><h1>🛡 Admin · All servers</h1><p class="sub">Default admin only · every server, its people and contents. Open any server to manage it as Head.</p></div>
+<div class="row"><a class="btn pri" href="admin-accounts.html">👥 Accounts &amp; backup</a><a class="btn pri" href="overview.html">⭐ All users' personal notes</a><a class="btn" href="cross.html">← Calendar</a></div></header>
+<main class="panel">
+  <h3>Create a server</h3>
+  <div class="cr"><input id="cn" placeholder="Server name" maxlength="30"><input id="co" placeholder="Owner username (blank = you)"><button class="btn pri" id="cb">＋ Create</button></div>
+  <div class="err" id="err"></div>
+  <h3>Servers <span class="bd" id="cnt"></span></h3>
+  <div id="list">Loading…</div>
+</main>
+<script>
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ROLE={admin:'Head',host:'Supervisor',staff:'Staff'},$=q=>document.querySelector(q);
+let SV=[];
+const fail=e=>{$('#err').textContent=e.message||'Something went wrong'};
+function open(id,page){id==='cepalco'?localStorage.removeItem('stb_sv'):localStorage.setItem('stb_sv',id);location.assign(page)}
+function card(s){
+  const def=s.isDefault;
+  return `<div class="sv" data-id="${esc(s.id)}"><h3>${esc(s.name)} ${def?'<span class="bd">Default</span>':''}</h3>
+  <p class="meta">Owner: <b>${esc(s.owner)}</b>${s.created?' · created '+esc(s.created):''} · ${s.members.length} member${s.members.length===1?'':'s'} · ${s.tasks} shared task${s.tasks===1?'':'s'}<br>
+  Channels: ${s.channels.map(esc).join(', ')||'—'} · Roles: ${s.roles.map(esc).join(', ')||'—'}${s.code?` · ${def?'Sign-up code':'Invite code'}: <span class="code">${esc(s.code)}</span>`:''}</p>
+  <div class="acts"><button class="btn pri" data-a="open">Open server</button><a class="btn" href="#" data-a="users">Manage people &amp; roles</a>
+  ${def?`<button class="btn" data-a="dcode">${s.code?'New invite code':'Create invite code'}</button>${s.code?'<button class="btn" data-a="doff">Turn off code</button>':''}`:''}${def?'':`<button class="btn" data-a="rename">Rename</button><button class="btn" data-a="code">New invite code</button>
+  <select data-s="own">${s.members.map(m=>`<option value="${esc(m.id)}"${m.id===s.ownerId?' selected':''}>${esc(m.name)} (${esc(m.username)})</option>`).join('')}</select><button class="btn" data-a="owner">Make owner</button>
+  <button class="btn danger" data-a="del">Delete server</button>`}</div>
+  <details><summary>People (${s.members.length})</summary><div style="overflow-x:auto"><table><tr><th>Name</th><th>Username</th><th>Position</th><th>Roles</th></tr>
+  ${s.members.map(m=>`<tr><td>${esc(m.name)}${m.id===s.ownerId?' ★':''}</td><td>${esc(m.username)}</td><td>${esc(ROLE[m.role]||m.role)}</td><td>${m.roles.map(esc).join(', ')}</td></tr>`).join('')}</table></div></details></div>`;
+}
+async function load(){
+  try{SV=(await api('/api/admin/servers')).servers}catch(e){$('#list').textContent=e.message;return}
+  $('#cnt').textContent=SV.length;$('#list').innerHTML=SV.map(card).join('');
+}
+$('#list').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;e.preventDefault();
+  const box=b.closest('.sv'),s=SV.find(x=>x.id===box.dataset.id),a=b.dataset.a;$('#err').textContent='';
+  try{
+    if(a==='open')return open(s.id,'index.html');
+    if(a==='users')return open(s.id,'users.html');
+    if(a==='rename'){const n=prompt('New server name',s.name);if(n===null)return;await api('/api/servers/'+s.id,'PUT',{name:n})}
+    if(a==='dcode'){await api('/api/servers/cepalco/invite','POST',{})}
+    if(a==='doff'){if(!confirm('Turn off the CEPALCO invite code? Nobody can sign up with it until you create a new one.'))return;await api('/api/servers/cepalco/invite','DELETE')}
+    if(a==='code'){await api('/api/servers/'+s.id+'/invite','POST',{})}
+    if(a==='owner'){const u=box.querySelector('[data-s=own]').value;if(u===s.ownerId)return;await api('/api/admin/servers/'+s.id+'/owner','PUT',{userId:u})}
+    if(a==='del'){if(!confirm('Delete "'+s.name+'" with its chat, roles and shared tasks? This cannot be undone.'))return;await api('/api/servers/'+s.id,'DELETE')}
+    await load();
+  }catch(x){fail(x)}
+});
+$('#cb').onclick=async()=>{$('#err').textContent='';try{const r=await api('/api/admin/servers','POST',{name:$('#cn').value,owner:$('#co').value});$('#cn').value=$('#co').value='';await load()}catch(x){fail(x)}};
+(async()=>{const me=await currentUser();if(!me)return location.replace('login.html');if(!me.user.superAdmin)return location.replace('index.html');load()})();
+</script></body></html>

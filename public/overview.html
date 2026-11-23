@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>All Users' Notes · Admin · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&family=Architects+Daughter&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="friends.css">
+<link rel="stylesheet" href="posts.css">
+<style>
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--gap)}
+.ctl label{display:grid;gap:4px;font-size:.68rem;font-weight:800;text-transform:uppercase;opacity:.9}
+.ctl select{width:100%}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:var(--soft);border:1px solid var(--bd);border-radius:var(--r);max-width:1100px;margin:0 auto 14px}
+.seg button{min-height:40px;border:0;border-radius:10px;background:transparent;font-weight:800;opacity:.7;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;min-width:0}
+@media(max-width:700px){.seg button{font-size:.74rem;padding:0 4px;gap:4px}}
+.seg button.on{background:var(--acc);color:var(--acci);opacity:1}
+.ulist{display:flex;flex-wrap:wrap;gap:8px}
+.up{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border:2px solid var(--bd);border-radius:99px;background:var(--soft);font-size:.78rem;font-weight:800}
+.up b{color:var(--ink);background:var(--panel);border:1px solid var(--bd);border-radius:99px;padding:0 8px;font-size:.7rem}
+.up.on{border-color:var(--acc);background:var(--acc);color:var(--acci)}
+.row2{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.chip b{font-weight:800}
+.pri-Now{border-left:4px solid #f87171}.pri-Next{border-left:4px solid #facc15}.pri-Later{border-left:4px solid #4ade80}
+.card{border:1px solid var(--bd);border-radius:var(--r);padding:12px;margin-bottom:8px;background:var(--soft);display:grid;gap:4px}
+.card .top2{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.card h4{font-family:'Architects Daughter',cursive;font-size:1rem;word-break:break-word}
+.card p{margin:0;font-size:.78rem;opacity:.8;word-break:break-word}
+.tags{display:flex;flex-wrap:wrap;gap:6px;font-size:.68rem;font-weight:800}
+.tags span{border:1px solid var(--bd);background:var(--panel);border-radius:99px;padding:2px 9px}
+.gh{font-family:Fredoka,sans-serif;margin:16px 0 8px;font-size:1rem;display:flex;justify-content:space-between}
+.sw3{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid rgba(0,0,0,.2)}
+.ro{font-size:.7rem;font-weight:800;background:var(--soft);border:1px dashed var(--acc);border-radius:99px;padding:3px 10px;white-space:nowrap}
+</style><script src="icons.js" defer></script>
+</head>
+<body class="th-white">
+<script src="auth.js"></script>
+<script src="servers.js" defer></script>
+<header class="panel top">
+  <div class="brand"><h1>⭐ All Users' Notes</h1><p class="sub">Every account's personal notes and every server's shared tasks · filter by server or see all · read-only</p></div>
+  <div class="toolbar">
+    <a class="mini" href="admin-servers.html">← Admin</a><a class="mini" href="cross.html">Calendar</a>
+    <span class="ro">👁 View only</span>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="cUsers">0</b>Users</div>
+    <div class="stat"><b id="cNotes">0</b>Notes shown</div>
+    <div class="stat"><b id="cAll">0</b>Total</div>
+  </div>
+  <div class="ctl">
+    <label>Server<select id="fSv"><option value="all">All servers</option></select></label>
+    <label>Show<select id="fSrc"><option value="all">Both</option><option value="personal">Personal</option><option value="shared">Shared</option></select></label>
+    <label>Status<select id="fStatus"><option value="active">Active</option><option value="done">Completed</option><option value="trash">Trash</option><option value="all">All</option></select></label>
+    <label>Priority<select id="fPri"><option value="all">All</option><option>Now</option><option>Next</option><option>Later</option></select></label>
+    <label>Sort by<select id="fSort"><option value="date">Date</option><option value="user">User (A–Z)</option><option value="server">Server (A–Z)</option><option value="priority">Priority</option><option value="status">Status</option><option value="title">Title (A–Z)</option></select></label>
+    <label>Order<select id="fDir"><option value="1">Ascending ↑</option><option value="-1">Descending ↓</option></select></label>
+    <label>Search<input id="fQ" type="search" placeholder="Title or details…"></label>
+  </div>
+  <div class="ulist" id="ulist" role="group" aria-label="Filter by user"></div>
+</header>
+
+<div class="seg" role="tablist"><button id="vCal" class="on">📅 Calendar</button><button id="vList">📋 List &amp; Sort</button><button id="vDone">✅ Completed <em id="nDone" style="font-style:normal;font-size:.7rem;border:1px solid var(--bd);background:var(--panel);color:var(--ink);border-radius:99px;padding:1px 8px">0</em></button></div>
+
+<main class="panel" id="calP">
+  <div class="calbar"><button class="btn" id="prev" aria-label="Previous month">‹</button><h2 id="mt"></h2><button class="btn" id="next" aria-label="Next month">›</button><button class="btn" id="goToday">Today</button></div>
+  <div class="grid head"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+  <div class="grid" id="grid"></div>
+  <p class="sub legend"><span class="dot tdy"></span> Today · numbers show how many notes fall on that day · shared tasks are marked 👥 · tap a day to see who owns what</p>
+</main>
+<main class="panel" id="listP" hidden>
+  <div class="row2"><h3 id="lh">Notes</h3><label class="sub" style="display:flex;gap:6px;align-items:center;font-weight:800"><input type="checkbox" id="grp" style="min-height:0;width:18px;height:18px"> Group by <select id="gby" style="min-height:0;padding:2px 6px"><option value="user">user</option><option value="server">server</option></select></label></div>
+  <div id="list"></div>
+</main>
+
+<main class="panel" id="doneP" hidden>
+  <div class="row2"><h3 id="dh">Completed</h3><span class="sub">Newest first · grouped by user</span></div>
+  <div id="doneList"></div>
+</main>
+
+<div class="overlay" id="modal" hidden><section class="panel board"><div class="bhead"><div><h2 id="mh"></h2><span class="pill" id="mc"></span></div><button class="x" id="mx" aria-label="Close">×</button></div><div id="mb" style="margin-top:14px"></div></section></div>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const ROLE={admin:'Head',host:'Supervisor',staff:'Staff'},PR={Now:0,Next:1,Later:2},ST={active:'Active',done:'Completed',trash:'Trash'};
+const todayStr=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date());
+let U=[],T=[],UM={},sel=new Set(),vy,vm,view='cal';
+const f={sv:'all',src:'all',status:'active',pri:'all',sort:'date',dir:1,q:''};
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),3000)};
+const uname=id=>UM[id]?.name||'Unknown';
+const fmt=d=>{const[y,m,dd]=d.split('-').map(Number);return new Date(y,m-1,dd).toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric',year:'numeric'})};
+
+const icon={Now:'🔴',Next:'🟡',Later:'🟢'};
+function filtered(src=f.src,status=statusNow()){
+  const q=f.q.trim().toLowerCase();
+  return T.filter(t=>(src==='all'||t.src===src)&&(f.sv==='all'||t.svIds.includes(f.sv))&&t.uids.some(u=>sel.has(u)||!UM[u])&&(status==='all'||t.state===status)&&(f.pri==='all'||t.priority===f.pri)
+    &&(!q||(t.title+' '+(t.description||'')).toLowerCase().includes(q)));
+}
+const statusNow=()=>view==='done'?'done':f.status;
+const svTxt=t=>t.svNames.join(', ');
+const owner=t=>t.src==='shared'?(t.assignees[0]?.name||'Shared'):uname(t.userId);
+function sorted(L){
+  const d=f.dir,c={date:(a,b)=>a.date.localeCompare(b.date),user:(a,b)=>owner(a).localeCompare(owner(b)),server:(a,b)=>svTxt(a).localeCompare(svTxt(b)),
+    priority:(a,b)=>PR[a.priority]-PR[b.priority],status:(a,b)=>a.state.localeCompare(b.state),title:(a,b)=>a.title.localeCompare(b.title)}[f.sort];
+  return [...L].sort((a,b)=>d*c(a,b)||a.date.localeCompare(b.date)||a.title.localeCompare(b.title));
+}
+function users(){
+  const base=T.filter(t=>(f.sv==='all'||t.svIds.includes(f.sv))&&(f.src==='all'||t.src===f.src)&&(statusNow()==='all'||t.state===statusNow()));
+  $('#ulist').innerHTML=`<button class="up${sel.size===U.length?' on':''}" data-u="*">Everyone <b>${base.length}</b></button>`+
+    U.map(u=>`<button class="up${sel.has(u.id)?' on':''}" data-u="${esc(u.id)}" title="${esc(ROLE[u.role])}${u.active?'':' · disabled'}">${esc(u.name)}${u.active?'':' ⛔'} <b>${base.filter(t=>t.uids.includes(u.id)).length}</b></button>`).join('');
+}
+function card(t,showUser=true){
+  const sh=t.src==='shared',n=sh?t.assignees.length:0,dn=sh?t.assignees.filter(a=>a.done).length:0;
+  return `<div class="card pri-${t.priority}"><div class="top2"><h4>${esc(t.title)}</h4><span class="sw3" style="background:${esc(t.color)};margin:0;flex:none" title="Note colour"></span></div>
+  ${t.description?`<p>${esc(t.description)}</p>`:''}
+  <div class="tags"><span>${sh?'👥 Shared':'👤 Personal'}</span><span title="Server">🖥 ${esc(svTxt(t)||'No server')}</span>${sh?`<span>From: ${esc(t.createdByName)}</span><span>To: ${esc(t.assignees.map(a=>(a.done?'✔ ':'')+a.name).join(', '))}</span><span>${dn}/${n} done</span>`:(showUser?`<span>Owner: ${esc(uname(t.userId))}</span>`:'')}<span>📅 ${esc(fmt(t.date))}</span><span>${icon[t.priority]} ${t.priority}</span><span>${ST[t.state]}</span>${t.pinned?'<span>📌</span>':''}${t.favorite?'<span>⭐</span>':''}</div></div>`;
+}
+const doneOn=t=>t.src==='shared'?(t.assignees.map(a=>a.doneAt).filter(Boolean).sort().pop()||t.date):(t.completed||t.date);
+function renderDone(){
+  const L=filtered().sort((a,b)=>doneOn(b).localeCompare(doneOn(a))||a.title.localeCompare(b.title));
+  $('#dh').textContent=`${L.length} completed task${L.length===1?'':'s'}`;
+  if(!L.length){$('#doneList').innerHTML='<div class="empty">No completed tasks for these filters.</div>';return}
+  const g={};L.forEach(t=>{const k=t.src==='shared'?'~shared':t.userId;(g[k]=g[k]||[]).push(t)});
+  const nm=k=>k==='~shared'?'👥 Shared tasks':'👤 '+uname(k);
+  $('#doneList').innerHTML=Object.keys(g).sort((a,b)=>(a==='~shared')-(b==='~shared')||uname(a).localeCompare(uname(b))).map(k=>`<div class="gh"><span>${esc(nm(k))}</span><span class="sub">${g[k].length} done</span></div>`+g[k].map(t=>card(t,false).replace('</div></div>',`<span>✔ Finished ${esc(doneOn(t))}</span></div></div>`)).join('')).join('');
+}
+function renderCal(){
+  const L=filtered(),by={};L.forEach(t=>(by[t.date]=by[t.date]||[]).push(t));
+  $('#mt').textContent=`${MONTHS[vm]} ${vy}`;
+  const first=new Date(vy,vm,1).getDay(),dim=new Date(vy,vm+1,0).getDate(),td=todayStr();let h='';
+  for(let i=0;i<first;i++)h+='<div></div>';
+  for(let d=1;d<=dim;d++){
+    const k=`${vy}-${pad(vm+1)}-${pad(d)}`,l=by[k]||[];
+    h+=`<button class="cell${k===td?' tdy':''}" data-d="${k}"><span class="n">${d}${l.length?`<em>${l.length}</em>`:''}</span>${sorted(l).slice(0,2).map(t=>`<span class="chip" style="background:${esc(t.color)}"><b>${t.src==='shared'?'👥':esc(owner(t).split(' ')[0])}</b> ${esc(t.title)}</span>`).join('')}${l.length>2?`<span class="h">+${l.length-2} more</span>`:''}</button>`;
+  }
+  $('#grid').innerHTML=h;
+}
+function renderList(){
+  const L=sorted(filtered());$('#lh').textContent=`${L.length} note${L.length===1?'':'s'}`;
+  if(!L.length){$('#list').innerHTML='<div class="empty">No notes match these filters.</div>';return}
+  if($('#grp').checked){
+    const bySv=$('#gby').value==='server',g={};L.forEach(t=>{const k=bySv?svTxt(t)||'—':t.src==='shared'?'~shared':t.userId;(g[k]=g[k]||[]).push(t)});
+    const nm=k=>bySv?'🖥 '+k:k==='~shared'?'👥 Shared tasks':'👤 '+uname(k);
+    $('#list').innerHTML=Object.keys(g).sort((a,b)=>bySv?a.localeCompare(b)*f.dir:(a==='~shared')-(b==='~shared')||uname(a).localeCompare(uname(b))*(f.sort==='user'?f.dir:1)).map(k=>`<div class="gh"><span>${esc(nm(k))}</span><span class="sub">${g[k].length}</span></div>`+g[k].map(t=>card(t,false)).join('')).join('');
+  }else $('#list').innerHTML=L.map(t=>card(t)).join('');
+}
+function render(){
+  const L=filtered();
+  $('#cUsers').textContent=sel.size;$('#cNotes').textContent=L.length;$('#cAll').textContent=T.length;
+  users();
+  $('#calP').hidden=view!=='cal';$('#listP').hidden=view!=='list';$('#doneP').hidden=view!=='done';
+  $('#nDone').textContent=T.filter(t=>t.state==='done'&&(f.src==='all'||t.src===f.src)&&t.uids.some(u=>sel.has(u)||!UM[u])).length;
+  view==='cal'?renderCal():view==='list'?renderList():renderDone();
+}
+function openDay(k){
+  const L=sorted(filtered().filter(t=>t.date===k));
+  $('#mh').textContent=fmt(k);$('#mc').textContent=L.length+' note'+(L.length===1?'':'s');
+  $('#mb').innerHTML=L.length?L.map(t=>card(t)).join(''):'<div class="empty">No notes on this day.</div>';
+  $('#modal').hidden=false;document.body.classList.add('lock');
+}
+const closeDay=()=>{$('#modal').hidden=true;document.body.classList.remove('lock')};
+
+$('#grid').onclick=e=>{const c=e.target.closest('.cell');if(c)openDay(c.dataset.d)};
+$('#mx').onclick=closeDay;$('#modal').onclick=e=>{if(e.target.id==='modal')closeDay()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDay()});
+$('#ulist').onclick=e=>{const b=e.target.closest('.up');if(!b)return;const id=b.dataset.u;
+  if(id==='*')sel=sel.size===U.length?new Set():new Set(U.map(u=>u.id));else sel.has(id)?sel.delete(id):sel.add(id);render()};
+$('#prev').onclick=()=>{vm--;if(vm<0){vm=11;vy--}render()};
+$('#next').onclick=()=>{vm++;if(vm>11){vm=0;vy++}render()};
+$('#goToday').onclick=()=>{const t=todayStr().split('-').map(Number);vy=t[0];vm=t[1]-1;render()};
+const setView=v=>{view=v;[['cal','#vCal'],['list','#vList'],['done','#vDone']].forEach(([k,id])=>$(id).classList.toggle('on',k===v));render()};
+$('#vCal').onclick=()=>setView('cal');$('#vList').onclick=()=>setView('list');$('#vDone').onclick=()=>setView('done');
+[['#fSv','sv'],['#fSrc','src'],['#fStatus','status'],['#fPri','pri'],['#fSort','sort']].forEach(([s,k])=>$(s).onchange=e=>{f[k]=e.target.value;render()});
+$('#fDir').onchange=e=>{f.dir=+e.target.value;render()};
+$('#fQ').oninput=e=>{f.q=e.target.value;render()};
+$('#grp').onchange=render;$('#gby').onchange=render;
+
+(async()=>{
+  const me=await currentUser();if(!me)return location.replace('login.html');
+  try{const d=await api('/api/admin/notes');U=d.users;const SN=Object.fromEntries(d.servers.map(s=>[s.id,s.name]));
+    $('#fSv').innerHTML='<option value="all">All servers</option>'+d.servers.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+    const UMx=Object.fromEntries(U.map(u=>[u.id,u]));
+    T=[...d.tasks.map(t=>{return{...t,src:'personal',uids:[t.userId],state:t.status,svIds:[t.serverId],svNames:[t.serverName]}}),
+       ...(d.shared||[]).map(t=>({...t,src:'shared',uids:[...new Set([t.createdBy,...t.assignees.map(a=>a.id)])],state:t.status==='trash'?'trash':(t.complete?'done':'active'),svIds:[t.serverId],svNames:[t.serverName]}))];
+    U.sort((a,b)=>a.name.localeCompare(b.name));UM=Object.fromEntries(U.map(u=>[u.id,u]));sel=new Set(U.map(u=>u.id))}
+  catch(e){if(e.status===401)return location.replace('login.html');if(e.status===403)return location.replace('cross.html');toast('⚠️ '+friendly(e));return}
+  const t=todayStr().split('-').map(Number);vy=t[0];vm=t[1]-1;render();
+})();
+</script><script src="chat.js" defer></script><script src="friends.js" defer></script><script src="posts.js" defer></script>
+</body></html>

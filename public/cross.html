@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4a7fc4">
+<meta name="color-scheme" content="light dark">
+<title>Cross-server Calendar · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="logo.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="friends.css">
+<link rel="stylesheet" href="posts.css">
+<style>
+.xhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.xhead h1{font:700 clamp(1.2rem,4vw,1.6rem) Fredoka,sans-serif;margin:0}
+.xhead .sub{margin:2px 0 0}
+.xfil{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0}
+.xf{min-height:34px;padding:0 12px;border-radius:99px;border:1px solid var(--bd);background:var(--panel);font-weight:700;font-size:.78rem;display:inline-flex;align-items:center;gap:6px}
+.xf i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.xf[aria-pressed=true]{background:var(--acc);color:var(--acci);border-color:var(--acc)}
+.xf em{font-style:normal;opacity:.75;font-size:.7rem}
+.chip.xc{border-left:4px solid var(--sv,var(--acc))}
+.xrow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;border:1px solid var(--bd);border-left:6px solid var(--sv,var(--acc));margin-bottom:8px;background:var(--soft)}
+.xrow.dn{opacity:.6}.xrow.dn .xt{text-decoration:line-through}
+.xrow .xb{flex:1;min-width:0}
+.xt{font-weight:800;font-size:.92rem;overflow-wrap:anywhere}
+.xd{font-size:.78rem;opacity:.8;margin-top:2px;white-space:pre-wrap;overflow-wrap:anywhere}
+.xtag{display:inline-block;font-size:.62rem;font-weight:800;border-radius:99px;padding:2px 9px;background:var(--sv,var(--acc));color:#fff;margin-bottom:4px}
+.xact{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.xact .btn{min-height:34px;font-size:.78rem;padding:0 12px}
+.ag .w b{font-weight:800}
+.xempty{text-align:center;padding:18px;opacity:.65;font-size:.85rem}
+</style>
+<script src="icons.js" defer></script>
+</head>
+<body class="th-white" data-cross>
+<script src="auth.js"></script>
+<script src="servers.js" defer></script>
+<script src="chat.js" defer></script><script src="friends.js" defer></script><script src="posts.js" defer></script>
+<script>
+/* "My profile" / post notifications from the server rail: open it right here instead of jumping to a server page */
+window.openProfile=async()=>{const d=await currentUser();if(d&&d.user&&window.__cwCore)window.__cwCore.openProfile(d.user.id)};
+</script>
+
+<header class="panel top">
+  <div class="brand">
+    <div class="xhead"><span style="font-size:1.8rem" aria-hidden="true">🗓</span><div><h1>Cross-server Calendar</h1><p class="sub">Your personal notes + every task assigned to you, from all your servers</p></div></div>
+  </div>
+  <div class="toolbar"><span class="stat who-tag" id="who"></span></div>
+  <div class="stats">
+    <div class="stat"><b id="sActive">0</b>Active</div>
+    <div class="stat ok"><b id="sDone">0</b>Done</div>
+    <div class="stat bad"><b id="sOver">0</b>Overdue</div>
+  </div>
+</header>
+
+<div id="xNone" hidden style="max-width:1100px;margin:0 auto 12px;padding:14px;border-radius:14px;border:1px dashed var(--bd);font-size:.9rem">🏕 You are not in any server yet. Use a passkey or direct link from a server Head, or press <b>＋ Add a server</b> in the left menu to create or join one.</div>
+<div class="xfil" id="xFil" role="group" aria-label="Filter by source" style="max-width:1100px;margin:0 auto 12px"></div>
+
+<main class="panel cal">
+  <div class="calbar">
+    <button class="btn" id="prev" aria-label="Previous month">‹</button>
+    <h2 id="monthTitle"></h2>
+    <button class="btn" id="next" aria-label="Next month">›</button>
+    <button class="btn pri" id="goToday">Today</button>
+  </div>
+  <div class="grid head"><span class="red">Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+  <div class="grid" id="days"></div>
+  <p class="sub legend"><i class="dot tdy"></i> Today (Manila time) · colored edge = which server the task belongs to</p>
+</main>
+
+<section class="panel agenda">
+  <h3>📌 Coming up — all servers</h3>
+  <div id="agList"></div>
+</section>
+
+<div id="modal" class="overlay" hidden>
+  <div class="panel board" role="dialog" aria-modal="true" style="max-width:640px">
+    <div class="bhead"><div><h2 id="bTitle"></h2></div><button class="x" id="bClose" title="Close (Esc)" aria-label="Close">×</button></div>
+    <div id="bBody"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const pad=n=>String(n).padStart(2,'0'),key=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+const todayStr=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date());
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const col=c=>/^#[0-9a-f]{3,8}$/i.test(c)?c:'#fff3a1';
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),2800)};
+const hue=id=>{let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))%360;return h};
+const svColor=id=>id==='personal'?'#2f66b8':id==='cepalco'?'#a16207':`hsl(${hue(id)} 55% 45%)`;
+const PRI={Now:0,Next:1,Later:2};
+const t0=todayStr().split('-').map(Number);
+let vy=t0[0],vm=t0[1]-1,openDate=null,src='all',D={servers:[],personal:[],shared:[]},ALL=[];
+
+// one list for everything: {src, srcName, id, title, description, date, color, priority, done, ...}
+function build(){
+  const P=D.personal.map(t=>({src:t.serverId,kind:'personal',srcName:t.serverName,id:t.id,title:t.title,description:t.description||'',date:t.date,color:t.color,priority:t.priority||'Next',done:t.status==='done',pinned:!!t.pinned}));
+  const S=D.shared.map(t=>({src:t.serverId,srcName:t.serverName,id:t.id,title:t.title,description:t.description||'',date:t.date,color:t.color,priority:t.priority||'Next',done:!!t.myDone,by:t.createdByName,pinned:!!t.pinned,shared:true}));
+  ALL=P.concat(S).filter(t=>/^\d{4}-\d{2}-\d{2}$/.test(t.date||''));
+}
+const view=()=>ALL.filter(t=>src==='all'||t.src===src||(src==='personal'&&t.kind==='personal'));
+const sort=l=>l.slice().sort((a,b)=>(a.done-b.done)||((b.pinned?1:0)-(a.pinned?1:0))||((PRI[a.priority]||0)-(PRI[b.priority]||0)));
+
+function renderFil(){
+  const cnt=id=>ALL.filter(t=>!t.done&&(id==='all'||t.src===id||(id==='personal'&&t.kind==='personal'))).length;
+  const opt=[['all','All','#888'],['personal','👤 All personal','#2f66b8'],...D.servers.map(s=>[s.id,s.name,svColor(s.id)])];
+  $('#xFil').innerHTML=opt.map(([id,n,c])=>`<button class="xf" data-s="${esc(id)}" aria-pressed="${id===src}"><i style="background:${c}"></i>${esc(n)} <em>${cnt(id)}</em></button>`).join('');
+}
+$('#xFil').onclick=e=>{const b=e.target.closest('.xf');if(!b)return;src=b.dataset.s;renderAll()};
+
+function renderCal(){
+  $('#monthTitle').textContent=`${MONTHS[vm]} ${vy}`;
+  const first=new Date(vy,vm,1).getDay(),dim=new Date(vy,vm+1,0).getDate(),tds=todayStr(),L=view();
+  let out='';for(let i=0;i<first;i++)out+='<div></div>';
+  for(let d=1;d<=dim;d++){
+    const k=key(vy,vm,d),act=sort(L.filter(t=>t.date===k&&!t.done));
+    out+=`<button class="cell${k===tds?' tdy':''}" data-d="${k}"><span class="n"><span>${d}</span>${act.length?`<em>${act.length}</em>`:''}</span>
+      ${act.slice(0,2).map(t=>`<span class="chip xc" style="background:${col(t.color)};--sv:${svColor(t.src)}" title="${esc(t.srcName)}">${esc(t.title)}</span>`).join('')}
+      ${act.length>2?`<span class="h">+${act.length-2} more</span>`:''}</button>`;
+  }
+  $('#days').innerHTML=out;
+  const A=L.filter(t=>!t.done);
+  $('#sActive').textContent=A.length;$('#sDone').textContent=L.filter(t=>t.done).length;$('#sOver').textContent=A.filter(t=>t.date<tds).length;
+}
+function renderAgenda(){
+  const tds=todayStr(),addD=(s,n)=>{const [y,m,d]=s.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,d+n));return `${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())}`};
+  const lim=addD(tds,7),lab=d=>d<tds?'Overdue':d===tds?'Today':d===addD(tds,1)?'Tomorrow':new Date(d+'T00:00:00').toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric'});
+  const L=view().filter(t=>!t.done&&t.date<=lim).sort((a,b)=>a.date.localeCompare(b.date)||(PRI[a.priority]||0)-(PRI[b.priority]||0)).slice(0,12);
+  $('#agList').innerHTML=L.length?L.map(t=>`<button class="ag" data-d="${t.date}"><span class="d${t.date<tds?' late':''}">${lab(t.date)}</span><span class="t">${esc(t.title)}</span><span class="w"><b style="color:${svColor(t.src)}">●</b> ${esc(t.srcName)}</span></button>`).join(''):'<div class="empty">All clear — nothing due soon 🎉</div>';
+}
+function renderAll(){renderFil();renderCal();renderAgenda();if(openDate)renderBoard()}
+$('#days').onclick=e=>{const c=e.target.closest('.cell');if(c)openBoard(c.dataset.d)};
+$('#agList').onclick=e=>{const b=e.target.closest('.ag');if(!b)return;const [y,m]=b.dataset.d.split('-').map(Number);vy=y;vm=m-1;renderCal();openBoard(b.dataset.d)};
+$('#prev').onclick=()=>{vm--;if(vm<0){vm=11;vy--}renderCal()};
+$('#next').onclick=()=>{vm++;if(vm>11){vm=0;vy++}renderCal()};
+$('#goToday').onclick=()=>{vy=t0[0];vm=t0[1]-1;renderCal()};
+
+function openBoard(d){openDate=d;$('#modal').hidden=false;document.body.classList.add('lock');renderBoard()}
+function closeBoard(){$('#modal').hidden=true;document.body.classList.remove('lock');openDate=null}
+$('#bClose').onclick=closeBoard;
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeBoard()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openDate)closeBoard()});
+function renderBoard(){
+  $('#bTitle').textContent=new Date(openDate+'T00:00:00').toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const L=sort(view().filter(t=>t.date===openDate));
+  $('#bBody').innerHTML=L.length?L.map((t,i)=>`<div class="xrow${t.done?' dn':''}" style="--sv:${svColor(t.src)}">
+    <div class="xb"><span class="xtag">${t.kind==='personal'?'👤 Personal · ':''}${esc(t.srcName)}</span>
+      <div class="xt">${t.done?'✔ ':''}${esc(t.title)}</div>
+      ${t.description?`<div class="xd">${esc(t.description)}</div>`:''}
+      <div class="xd">${esc(t.priority)}${t.by?' · from '+esc(t.by):''}</div>
+      <div class="xact">
+        ${t.shared&&!t.done?`<button class="btn pri" data-a="done" data-i="${i}">✔ Mark my part done</button>`:''}
+        <button class="btn" data-a="open" data-i="${i}">${t.kind==='personal'?'Open my notes in ':'Open in '}${esc(t.srcName)} ↗</button>
+      </div></div></div>`).join(''):'<div class="xempty">Nothing on this date 🎉</div>';
+  $('#bBody')._L=L;
+}
+$('#bBody').onclick=async e=>{
+  const b=e.target.closest('button[data-a]');if(!b)return;
+  const t=$('#bBody')._L[+b.dataset.i];if(!t)return;
+  if(b.dataset.a==='open'){   // jump into that server (or Personal) on the normal calendar
+    t.src==='cepalco'?localStorage.removeItem('stb_sv'):localStorage.setItem('stb_sv',t.src);localStorage.setItem('stb_mode',t.kind==='personal'?'personal':'shared');
+    return location.assign('index.html');
+  }
+  if(b.dataset.a==='done'){
+    b.disabled=true;
+    try{await api('/api/shared/'+encodeURIComponent(t.id),'PUT',{done:true},t.src);const x=D.shared.find(s=>s.id===t.id&&s.serverId===t.src);if(x)x.myDone=true;build();renderAll();toast('Marked done ✔')}
+    catch(x){b.disabled=false;toast('⚠️ '+friendly(x))}
+  }
+};
+
+async function load(){
+  try{D=await api('/api/cross');build();renderAll();$('#xNone').hidden=D.servers.length>0}
+  catch(e){if(e.status===401)return location.replace('login.html');toast('⚠️ Could not load: '+friendly(e))}
+}
+(async()=>{
+  const me=await currentUser();if(!me)return location.replace('login.html');
+  const n=me.user.name||me.user.username,ini=String(n).trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'?';
+  const av=document.createElement('span');av.className='av sm';
+  if(me.user.avatarAt){const i=new Image();i.alt='';i.src='/api/avatar?v='+me.user.avatarAt;i.onerror=()=>{i.remove();av.textContent=ini};av.append(i)}else av.textContent=ini;
+  $('#who').append(av);$('#who').insertAdjacentHTML('beforeend',`<b style="font-size:.85rem">${esc(n)}</b>`);
+  renderCal();await load();
+  setInterval(()=>{if(!document.hidden&&!openDate)load()},120000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!openDate)load()});
+})();
+</script>
+</body>
+</html>

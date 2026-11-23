@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="theme-color" content="#f6f7f9">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Log in · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="logo.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="stylesheet" href="style.css"><script src="icons.js" defer></script>
+</head>
+<body class="th-white login" style="padding-top:max(14px,env(safe-area-inset-top))">
+<script src="auth.js"></script>
+<form class="panel card" id="f">
+  <div class="head"><svg class="logo big" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="16" fill="#4a7fc4"/><path d="M14 16h8c2 0 3 1 3 3v22c0 3 1 5 3 6l-2 4H17c-2 0-3-1-3-3z" fill="#fff"/><path d="M27 16h25a2 2 0 0 1 2 2v25a2 2 0 0 1-2 2H27z" fill="#fff"/><path d="M30 18l9 2.500a2 2 0 0 1 1.500 2V36l-10.500 6z" fill="#7f97b3"/><path d="M38 41c5-1 11-1 13 4v1H38z" fill="#7f97b3"/><path d="M20.500 38l6 6L40 30" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.500 38l6 6L40 30" fill="none" stroke="#4a7fc4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><h1 class="logo-h"><span class="wm">CrewCamp</span></h1><p class="sub"><i>Calendars and tasks for your team</i></p></div>
+  <input id="u" placeholder="User ID" enterkeyhint="next" autocomplete="username" autocapitalize="none" required autofocus>
+  <input id="p" type="password" placeholder="Password" autocomplete="current-password" required>
+  <div id="inv" class="sub" hidden style="font-size:.78rem;font-weight:700;margin:-2px 0 4px">🎟 You were invited to a server. Log in or sign up with Google to join it.</div>
+  <div id="err" class="bad" style="font-size:.78rem;font-weight:700;min-height:1.2em"></div>
+  <button class="btn pri big" type="submit">Log in</button>
+  <div id="gwrap" hidden><div class="or" id="orl"><span>or</span></div><div class="gbox"><div id="gbtn" class="gbtn"></div><div id="gblock" class="gblock" hidden></div></div></div>
+  <div class="foot">Version 2.16.12</div>
+</form>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(async()=>{
+  const $=id=>document.getElementById(id);
+  const JOIN=(new URLSearchParams(location.search).get('join')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
+  if(JOIN)$('inv').hidden=false;
+  // after login / sign-up: use the passkey (typed or from the link) to enter that server with the position it gives
+  async function enter(){
+    const c=(JOIN).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!c)return location.href='cross.html';
+    sessionStorage.removeItem('stb_svl');
+    try{const j=await api('/api/servers/join','POST',{code:c});j.id==='cepalco'?localStorage.removeItem('stb_sv'):localStorage.setItem('stb_sv',j.id);location.href='index.html'}
+    catch(x){if(/already in/i.test(x.message))return location.href='cross.html';err.textContent=x.message+' You are signed in; you can add a server from the menu.';setTimeout(()=>location.href='cross.html',3500)}
+  }
+
+  const btn=document.querySelector('button[type=submit]'),err=$('err'),U=$('u'),P=$('p');
+  if(await currentUser())return enter();
+  let cfg={},gReady=false;
+  function paintGoogle(){
+    if(!gReady)return;
+    $('gbtn').innerHTML='';
+    google.accounts.id.renderButton($('gbtn'),{type:'standard',theme:'outline',size:'large',text:'continue_with',shape:'pill',logo_alignment:'left',width:Math.min(400,Math.round($('gbtn').getBoundingClientRect().width)||300)});
+  }
+  $('f').onsubmit=async e=>{
+    e.preventDefault();
+    btn.disabled=true;btn.textContent='Logging in…';err.textContent='';
+    try{await login(U.value,P.value);await enter()}
+    catch(x){err.textContent=x.status?x.message:'Cannot reach the server. Check your connection.';btn.disabled=false;btn.textContent='Log in'}
+  };
+  try{cfg=await api('/api/config')}catch(e){}
+  if(!cfg.googleClientId)return;
+  const start=()=>{
+    if(!window.google||!google.accounts)return setTimeout(start,150);
+    google.accounts.id.initialize({client_id:cfg.googleClientId,ux_mode:'popup',callback:async r=>{
+      err.textContent='';
+      try{sessionStorage.removeItem('stb_svl');await api('/api/google','POST',{credential:r.credential});await enter()}
+      catch(x){
+        if(x.status===404&&/no account/i.test(x.message)){sessionStorage.setItem('cc_gcred',r.credential);return location.href='register.html'+(JOIN?'?join='+JOIN:'')}   // new Google account: carry on to the details form
+        err.textContent=x.status?x.message:'Cannot reach the server. Check your connection.'}
+    }});
+    gReady=true;$('gwrap').hidden=false;paintGoogle();
+  };
+  start();
+})();
+</script></body></html>

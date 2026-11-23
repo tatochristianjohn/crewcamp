@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin · Accounts · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>table{width:100%;border-collapse:collapse;font-size:.8rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}th{font-size:.65rem;text-transform:uppercase;opacity:.6}
+.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:center;margin:10px 0 16px}
+.fm input:not([type=checkbox]){padding:9px 11px;border-radius:10px;border:1px solid var(--bd);background:transparent;color:inherit;font:inherit}
+.tag{font-size:.65rem;font-weight:800;border-radius:6px;padding:2px 7px;background:var(--soft);border:1px solid var(--bd);margin:1px;display:inline-block}
+.help{background:var(--soft);border:1px dashed var(--bd);border-radius:12px;padding:10px 12px;font-size:.78rem;font-weight:600;margin-bottom:12px;line-height:1.5}
+#toast div{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin:4px}.fm label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}table{min-width:560px}td,th{vertical-align:top}.tag{white-space:nowrap}main.panel{padding-bottom:84px}</style><script src="icons.js" defer></script>
+</head>
+<body class="th-white">
+<script>localStorage.removeItem("stb_sv")</script>
+<script src="auth.js"></script>
+<script src="servers.js" defer></script>
+<header class="panel top"><div><h1>🛡 Admin · Accounts</h1><p class="sub">Platform admin only · accounts are global (not tied to one server)</p></div>
+<div class="row"><a class="btn" href="admin-servers.html">← Admin</a><button class="btn" id="bx">⬇ Export Backup</button><button class="btn" id="bi">⬆ Import Backup</button><input type="file" id="bf" accept=".json" hidden></div></header>
+<main class="panel">
+  <div class="help">One account works in every server. Positions (Head / Supervisor / Staff) and custom roles are set <b>per server</b> from <a href="admin-servers.html">Admin → Manage people &amp; roles</a>.</div>
+  <h3 id="ft">Add account</h3>
+  <form id="f" class="fm">
+    <input id="fu" placeholder="Username" required pattern="[A-Za-z0-9_.\-]{3,30}" autocapitalize="none">
+    <input id="fn" placeholder="Display name">
+    <input id="fp" type="password" placeholder="Temporary password" autocomplete="new-password">
+    <label style="font-size:.8rem;font-weight:700"><input type="checkbox" id="fa" checked> Active</label>
+    <div class="row" style="margin:0"><button class="btn pri" type="submit" id="fs">＋ Add</button><button class="btn" type="button" id="fc" hidden>Cancel</button></div>
+  </form>
+  <p class="sub">New and reset passwords are temporary — the person chooses their own at next login.</p>
+  <div style="overflow-x:auto"><table><thead><tr><th>Username</th><th>Name</th><th>Servers</th><th>Status</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+</main>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);let ME,editId=null,AC=[];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),3000)};
+const fail=x=>{if(x.status===401)location.replace('login.html');else toast(friendly(x))};
+async function load(){try{AC=(await api('/api/admin/accounts')).accounts;render()}catch(x){fail(x)}}
+function render(){$('#tb').innerHTML=AC.map(u=>`<tr><td><b>${esc(u.username)}</b>${u.id===ME.id?' <span class="tag">you</span>':''}${u.mustChange?' <span class="tag">temp pw</span>':''}</td><td>${esc(u.name)}</td><td>${u.servers.map(n=>`<span class="tag">${esc(n)}</span>`).join('')}</td><td>${u.active?'🟢 Active':'⚪ Disabled'}</td>
+<td style="white-space:nowrap"><button class="mini" data-e="${esc(u.id)}">✏️ Edit</button> <button class="mini" data-d="${esc(u.id)}">🗑 Delete</button></td></tr>`).join('')}
+function reset(){editId=null;$('#f').reset();$('#fa').checked=true;$('#fu').disabled=false;$('#fp').required=true;$('#fp').placeholder='Temporary password';$('#ft').textContent='Add account';$('#fs').textContent='＋ Add';$('#fc').hidden=true}
+$('#fc').onclick=reset;
+$('#tb').onclick=async e=>{
+  const eb=e.target.closest('[data-e]'),db=e.target.closest('[data-d]');
+  if(eb){const u=AC.find(x=>x.id===eb.dataset.e);editId=u.id;$('#fu').value=u.username;$('#fu').disabled=true;$('#fn').value=u.name;$('#fp').value='';$('#fp').required=false;$('#fp').placeholder='New temporary password (blank = keep)';$('#fa').checked=u.active;$('#ft').textContent='Edit '+u.username;$('#fs').textContent='💾 Save';$('#fc').hidden=false;scrollTo({top:0,behavior:'smooth'})}
+  if(db){const u=AC.find(x=>x.id===db.dataset.d);if(!confirm(`Delete account "${u.username}"? Their personal notes, posts, friendships and DMs are removed in every server, and tasks assigned to them are removed from them.`))return;
+    try{await api('/api/admin/accounts/'+u.id,'DELETE');toast('Account deleted');load()}catch(x){fail(x)}}
+};
+$('#f').onsubmit=async e=>{e.preventDefault();const pw=$('#fp').value;
+  if(pw&&pw.length<6)return toast('Password must be at least 6 characters.');
+  const b={name:$('#fn').value,active:$('#fa').checked};
+  try{if(editId){if(pw)b.password=pw;await api('/api/admin/accounts/'+editId,'PUT',b);toast('Account updated')}
+    else{b.username=$('#fu').value;b.password=pw;await api('/api/admin/accounts','POST',b);toast('Account added')}
+    reset();load()}catch(x){fail(x)}};
+$('#bx').onclick=async()=>{try{const d=await api('/api/backup');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='Taskboard_Full_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Full backup saved')}catch(x){fail(x)}};
+$('#bi').onclick=()=>$('#bf').click();
+$('#bf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();
+  r.onload=async()=>{try{const p=JSON.parse(r.result);if(!confirm('Restore this backup? It REPLACES all current users, boards and shared tasks.'))return;
+    await api('/api/backup','POST',p);toast('Backup restored');ME=(await currentUser())?.user;if(!ME)return logout();load()}catch(x){toast(x instanceof SyntaxError?'Invalid backup file':friendly(x))}};r.readAsText(f)};
+(async()=>{const m=await currentUser();if(!m)return location.replace('login.html');ME=m.user;if(!ME.superAdmin)return location.replace('index.html');load()})();
+</script></body></html>

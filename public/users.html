@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Manage Users · CrewCamp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Quicksand:wght@400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="friends.css">
+<link rel="stylesheet" href="posts.css">
+<style>table{width:100%;border-collapse:collapse;font-size:.8rem}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}
+th{font-size:.65rem;text-transform:uppercase;opacity:.6}.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:center}
+.tag{font-size:.65rem;font-weight:800;border-radius:6px;padding:2px 7px;background:var(--soft);border:1px solid var(--bd)}
+.help{background:var(--soft);border:1px dashed var(--bd);border-radius:12px;padding:10px 12px;font-size:.78rem;font-weight:600;margin-bottom:12px;line-height:1.5}
+#fhWrap,#ftWrap{grid-column:1/-1}
+.rl{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.rl .tag{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;padding:4px 6px 4px 10px}.rl .mini{margin:0}
+#tm{border:1px dashed var(--bd);border-radius:12px;padding:10px 12px;margin:8px 0 14px;background:var(--soft)}
+.top .row .btn{flex:1 1 auto}
+@media(max-width:700px){.top .row{display:grid;grid-template-columns:1fr 1fr}.top .row .btn:first-child{grid-column:1/-1}.fm{grid-template-columns:1fr}table{font-size:.75rem}td:last-child .mini{margin:2px 0}}body.noacct #bx,body.noacct #bi,body.noacct [data-d]{display:none!important}
+main.panel{padding-bottom:84px}
+.fm label{display:inline-flex;align-items:center;gap:6px}
+.tag{white-space:nowrap}th,td{vertical-align:top}table{min-width:560px}</style><script src="icons.js" defer></script>
+</head>
+<body class="th-white">
+<script src="auth.js"></script>
+<script src="servers.js" defer></script>
+<header class="panel top"><div><h1>👥 Manage Users</h1><p class="sub">Head only · accounts, supervisors, and who reports to whom</p></div>
+<div class="row"><a class="btn" href="index.html">← Back to calendar</a><button class="btn" id="bx">⬇ Export Backup</button><button class="btn" id="bi">⬆ Import Backup</button><input type="file" id="bf" accept=".json" hidden></div></header>
+<main class="panel">
+  <div class="help"><b>Head</b> = admin (assigns to anyone, manages users) · <b>Supervisor</b> = assigns tasks on the Shared calendar to <i>their</i> staff · <b>Staff</b> = receives tasks. A staff member can report to several supervisors — tick them below.</div>
+  <h3>Custom roles</h3>
+  <p class="sub">Make a role (e.g. <b>DSD</b>) and give it to as many people as you like. Each role gets its own private chat channel (<b>dsd-chat</b>) that only people holding that role can see. Heads are not added automatically — tick yourself if you want in.</p>
+  <form id="rf" class="row" style="margin:8px 0"><input id="rn" placeholder="New role name, e.g. DSD" maxlength="30" style="flex:1 1 180px"><button class="btn pri" type="submit">＋ Create role</button></form>
+  <div class="rl" id="rl"></div>
+  <div id="tm" hidden><div class="sub" style="margin-bottom:6px"><b id="tmt"></b></div><div class="people" id="tmp"></div><div class="row" style="margin:0"><button class="btn pri" type="button" id="tms">💾 Save members</button><button class="btn" type="button" id="tmc">Cancel</button></div></div>
+  <h3 id="ft">Add member (existing account)</h3>
+  <form id="f" class="fm" novalidate style="margin:10px 0 16px">
+    <input id="fu" placeholder="Username" required pattern="[A-Za-z0-9_.\-]{3,30}" title="3–30 letters, numbers, . _ -" autocapitalize="none">
+    <input id="fn" placeholder="Display name">
+    <input id="fp" type="password" placeholder="Temporary password" autocomplete="new-password">
+    <select id="fr"><option value="staff">Staff</option><option value="host">Supervisor</option><option value="admin">Head (Admin)</option></select>
+    <label style="font-size:.8rem;font-weight:700"><input type="checkbox" id="fa" checked> Active</label>
+    <div id="fhWrap"><div class="sub" style="margin-bottom:4px"><b>Reports to (supervisors):</b></div><div class="people" id="fh"></div></div>
+    <div id="ftWrap"><div class="sub" style="margin-bottom:4px"><b>Custom roles (chat access):</b></div><div class="people" id="ftg"></div></div>
+    <div class="row" style="margin:0"><button class="btn pri" type="submit" id="fs">＋ Add</button><button class="btn" type="button" id="fc" hidden>Cancel</button></div>
+  </form>
+  <p class="sub">New and reset passwords are temporary — the person is asked to choose their own at next login.</p>
+  <div style="overflow-x:auto"><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Reports to</th><th>Custom roles</th><th>Status</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+</main>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);let ME,editId=null,US=[],TG=[],tmId=null;
+const ROLE={admin:'Head',host:'Supervisor',staff:'Staff'};
+const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{const d=document.createElement('div');d.textContent=m;$('#toast').append(d);setTimeout(()=>d.remove(),3000)};
+const fail=x=>{if(x.status===401)location.replace('login.html');else toast(friendly(x))};
+async function load(){try{const[a,b]=await Promise.all([api('/api/users'),api('/api/tags')]);US=a.users;TG=b.tags;render()}catch(x){fail(x)}}
+function hostBoxes(sel){
+  const hs=US.filter(u=>u.role==='host'&&u.active&&u.id!==editId);
+  $('#fh').innerHTML=hs.length?hs.map(h=>`<label class="pchip"><input type="checkbox" value="${esc(h.id)}"${sel.includes(h.id)?' checked':''}><span>${esc(h.name)}</span></label>`).join(''):'<span class="sub">No supervisors yet — add a user with the Supervisor role first.</span>';
+}
+function tagBoxes(sel){
+  $('#ftg').innerHTML=TG.length?TG.map(t=>`<label class="pchip"><input type="checkbox" value="${esc(t.id)}"${sel.includes(t.id)?' checked':''}><span>${esc(t.name)}</span></label>`).join(''):'<span class="sub">No custom roles yet — create one above.</span>';
+}
+const tagNames=u=>(u.tagIds||[]).map(id=>(TG.find(t=>t.id===id)||{}).name).filter(Boolean);
+function renderTags(){
+  $('#rl').innerHTML=TG.length?TG.map(t=>`<span class="tag">${esc(t.name)} · ${t.members} member${t.members===1?'':'s'} · #${esc(t.channel)} <button class="mini" data-m="${esc(t.id)}">👥 Members</button> <button class="mini" data-x="${esc(t.id)}">🗑</button></span>`).join(''):'<span class="sub">No custom roles yet.</span>';
+  if(tmId&&!TG.some(t=>t.id===tmId))closeTm();
+}
+function closeTm(){tmId=null;$('#tm').hidden=true}
+function syncRole(){$('#fhWrap').hidden=$('#fr').value!=='staff'}
+$('#fr').onchange=syncRole;
+function render(){
+  const keep=editId?[...$('#ftg').querySelectorAll('input:checked')].map(i=>i.value):[];renderTags();
+  $('#tb').innerHTML=US.map(u=>`<tr><td><b>${esc(u.username)}</b>${u.id===ME.id?' <span class="tag">you</span>':''}${u.mustChange?' <span class="tag" title="Has a temporary password">temp pw</span>':''}</td><td>${esc(u.name)}</td>
+  <td><span class="tag">${ROLE[u.role]||u.role}</span></td><td>${u.role==='staff'?(esc(u.hostNames.join(', '))||'<span class="sub">— none —</span>'):''}</td><td>${tagNames(u).map(n=>`<span class="tag">${esc(n)}</span>`).join(' ')||'<span class="sub">—</span>'}</td><td>${u.active?'🟢 Active':'⚪ Disabled'}</td>
+  <td style="white-space:nowrap"><button class="mini" data-e="${u.id}">✏️ Edit</button> <button class="mini" data-d="${u.id}">🗑 Delete</button></td></tr>`).join('');
+  hostBoxes(editId?(US.find(u=>u.id===editId)||{hostIds:[]}).hostIds:[]);tagBoxes(keep);syncRole();
+}
+function reset(){document.body.classList.remove('editing');editId=null;$('#f').reset();$('#fa').checked=true;$('#fu').disabled=false;$('#fp').required=true;$('#fp').placeholder='Temporary password';$('#ft').textContent='Add member (existing account)';$('#fs').textContent='＋ Add';$('#fc').hidden=true;render()}
+$('#fc').onclick=reset;
+$('#tb').onclick=async e=>{
+  const eb=e.target.closest('[data-e]'),db=e.target.closest('[data-d]');
+  if(eb){document.body.classList.add('editing');const u=US.find(x=>x.id===eb.dataset.e);editId=u.id;$('#fu').value=u.username;$('#fu').disabled=true;$('#fn').value=u.name;$('#fp').value='';
+    $('#fp').required=false;$('#fp').placeholder='New temporary password (blank = keep)';$('#fr').value=u.role;$('#fa').checked=u.active;
+    $('#ft').textContent='Edit '+u.username;$('#fs').textContent='💾 Save';$('#fc').hidden=false;hostBoxes(u.hostIds);tagBoxes(u.tagIds||[]);syncRole();scrollTo({top:0,behavior:'smooth'})}
+  if(db){const u=US.find(x=>x.id===db.dataset.d);
+    if(!confirm(`Delete user "${u.username}" and their personal board? Tasks assigned to them are removed from them.`))return;
+    try{await api('/api/users/'+u.id,'DELETE');toast('User deleted');load()}catch(x){fail(x)}}
+};
+$('#f').onsubmit=async e=>{
+  e.preventDefault();if(!editId&&!$('#fu').value.trim())return toast('Enter the username of an existing account.');const pw=$('#fp').value;
+  if(pw&&pw.length<6)return toast('Password must be at least 6 characters.');
+  const b={name:$('#fn').value,role:$('#fr').value,active:$('#fa').checked,hostIds:[...$('#fh').querySelectorAll('input:checked')].map(i=>i.value),tagIds:[...$('#ftg').querySelectorAll('input:checked')].map(i=>i.value)};
+  try{
+    if(editId){if(pw)b.password=pw;await api('/api/users/'+editId,'PUT',b);toast('User updated')}
+    else{b.username=$('#fu').value;b.password=pw;await api('/api/users','POST',b);toast('User added')}
+    document.body.classList.remove('editing');editId=null;$('#f').reset();$('#fa').checked=true;$('#fu').disabled=false;$('#fp').required=true;$('#fp').placeholder='Temporary password';$('#ft').textContent='Add member (existing account)';$('#fs').textContent='＋ Add';$('#fc').hidden=true;load();
+  }catch(x){fail(x)}
+};
+$('#rf').onsubmit=async e=>{e.preventDefault();const n=$('#rn').value.trim();if(!n)return;
+  try{const r=await api('/api/tags','POST',{name:n});$('#rn').value='';toast('Role created — channel #'+r.channel+' is ready');load()}catch(x){fail(x)}};
+$('#rl').onclick=async e=>{
+  const mb=e.target.closest('[data-m]'),xb=e.target.closest('[data-x]');
+  if(mb){const t=TG.find(x=>x.id===mb.dataset.m);tmId=t.id;$('#tmt').textContent='Who has the "'+t.name+'" role?';
+    $('#tmp').innerHTML=US.map(u=>`<label class="pchip"><input type="checkbox" value="${esc(u.id)}"${(u.tagIds||[]).includes(t.id)?' checked':''}><span>${esc(u.name||u.username)}${u.active?'':' (disabled)'}</span></label>`).join('');
+    $('#tm').hidden=false;$('#tm').scrollIntoView({behavior:'smooth',block:'nearest'})}
+  if(xb){const t=TG.find(x=>x.id===xb.dataset.x);
+    if(!confirm(`Delete the role "${t.name}"? Everyone loses it, and the private channel #${t.channel} and all its messages are deleted.`))return;
+    try{await api('/api/tags/'+t.id,'DELETE');toast('Role deleted');load()}catch(x){fail(x)}}
+};
+$('#tmc').onclick=closeTm;
+$('#tms').onclick=async()=>{if(!tmId)return;
+  try{await api('/api/tags/'+tmId,'PUT',{userIds:[...$('#tmp').querySelectorAll('input:checked')].map(i=>i.value)});toast('Members saved');closeTm();load()}catch(x){fail(x)}};
+$('#bx').onclick=async()=>{try{const d=await api('/api/backup');const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download='Taskboard_Full_Backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();toast('Full backup saved (users, personal boards, shared tasks)')}catch(x){fail(x)}};
+$('#bi').onclick=()=>$('#bf').click();
+$('#bf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();
+  r.onload=async()=>{try{const p=JSON.parse(r.result);
+    if(!confirm('Restore this backup? It REPLACES all current users, boards and shared tasks.'))return;
+    await api('/api/backup','POST',p);toast('Backup restored');ME=(await currentUser())?.user;if(!ME)return logout();load()}
+    catch(x){toast(x instanceof SyntaxError?'Invalid backup file':friendly(x))}};r.readAsText(f)};
+(async()=>{const m=await currentUser();
+  if(!m)return location.replace('login.html');
+  ME=m.user;if(ME.role!=='admin')return location.replace('index.html');
+  if(!localStorage.getItem('stb_sv')&&!ME.superAdmin){document.body.classList.add('noacct')}
+  if(!localStorage.getItem('stb_sv')&&ME.superAdmin){const n=document.createElement('div');n.className='help';n.innerHTML='Creating/deleting accounts and backups moved to <a href="admin-accounts.html"><b>Admin settings → Accounts</b></a>.';document.querySelector('main').prepend(n);document.body.classList.add('noacct')}
+  load()})();
+</script><script src="chat.js" defer></script><script src="friends.js" defer></script><script src="posts.js" defer></script>
+</body></html>

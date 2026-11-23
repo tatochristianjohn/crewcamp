@@ -1,0 +1,100 @@
+/* CrewCamp friends + private messages. Same tokens as chat.css (--panel --bd --soft --acc --acci --sh --ink --ctl), so every theme works. */
+.cwf{--cw-lift:64px;--cwf-h:min(540px,calc(100dvh - 96px - var(--cw-lift)));--cwf-wh:min(420px,calc(100dvh - 96px - var(--cw-lift)))}
+
+/* ---- Friends button (above the group-chat pill while it is minimized) ---- */
+.cwf-fab{position:fixed;z-index:45;right:calc(14px + var(--safe-r));bottom:calc(14px + var(--safe-b) + var(--cw-lift) + 58px);display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 14px;border-radius:99px;font:inherit;font-weight:800;font-size:.8rem;color:var(--ink);background:var(--panel);border:1px solid var(--bd);box-shadow:var(--sh);transition:transform .1s,border-color .15s}
+.cwf-fab:hover{border-color:var(--acc)}.cwf-fab:active{transform:scale(.97)}
+.cwf-fab[hidden]{display:none}
+
+/* header button inside the group-chat window */
+.cw-frb{position:relative}
+.cw-frb .cw-badge{position:absolute;top:-4px;right:-4px;height:16px;min-width:16px;font-size:.6rem;padding:0 4px;border:2px solid var(--acc)}
+
+/* ---- dock: sits beside the group chat; first child (the Friends panel) is nearest to it ---- */
+.cwf-dock{position:fixed;z-index:44;bottom:calc(14px + var(--safe-b) + var(--cw-lift));right:14px;display:flex;flex-direction:row-reverse;align-items:flex-end;gap:10px;pointer-events:none}
+.cwf-dock>*{pointer-events:auto}
+.cwf-panel,.cwf-win{display:flex;flex-direction:column;color:var(--ink);background:var(--panel);border:1px solid var(--bd);box-shadow:var(--sh);border-radius:18px;overflow:hidden;animation:pop .18s ease-out}
+.cwf-panel[hidden]{display:none}
+.cwf-panel{position:fixed;z-index:61;left:calc(82px + var(--safe-l,0px));top:12px;bottom:12px;width:min(320px,calc(100vw - 96px));height:auto;max-height:640px}
+body:not(.hasrail) .cwf-panel{position:static;width:300px;height:var(--cwf-h);max-height:none}
+body.hasrail .cwf-fab,body.hasrail .cw-frb{display:none!important}   /* Friends lives in the server rail now */
+.cwf-win{width:clamp(268px,26vw,320px);height:min(var(--cwf-wh),calc(100dvh - 28px));min-height:260px}
+.cwf-win.min{height:auto}
+.cwf-win.min>:not(.cwf-wh){display:none}
+
+/* ---- Friends panel ---- */
+.cwf-ph{display:flex;align-items:center;justify-content:space-between;padding:9px 8px 9px 14px;background:var(--acc);color:var(--acci);flex:none}
+.cwf-ph b{font-family:Fredoka,system-ui,sans-serif;font-size:.98rem;font-weight:600}
+.cwf-tabs{display:flex;gap:6px;padding:8px 10px 6px;overflow-x:auto;flex:none;scrollbar-width:none}
+.cwf-tab{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 11px;border-radius:99px;border:1px solid var(--bd);background:var(--soft);color:inherit;font-weight:800;font-size:.72rem;opacity:.85;white-space:nowrap}
+.cwf-tab:hover{border-color:var(--acc);opacity:1}
+.cwf-tab.on{background:var(--acc);color:var(--acci);border-color:var(--acc);opacity:1}
+.cwf-tab .cw-badge{height:16px;min-width:16px;font-size:.6rem;padding:0 4px}
+.cwf-search{padding:2px 10px 6px;flex:none}
+.cwf-search input{width:100%;min-height:36px;border-radius:99px;padding:0 14px;font-size:.84rem;font-weight:600}
+.cwf-note{min-height:0;padding:0 14px;font-size:.7rem;font-weight:700;flex:none}
+.cwf-note.err,.cwf-note.ok{padding:2px 14px 6px}
+.cwf-note.err{color:#dc2626}.cwf-note.ok{color:#16a34a}
+.cwf-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 6px 10px;scrollbar-width:thin}
+.cwf-list h4{font-family:inherit;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin:10px 8px 4px}
+.cwf-list .cw-none{margin:14px 10px}
+.cwf-row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:12px;cursor:pointer}
+.cwf-row:hover{background:var(--soft)}
+.cwf-rm{flex:1;min-width:0;display:grid;line-height:1.2}
+.cwf-rm b{font-weight:800;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cwf-rm small{font-size:.7rem;font-weight:600;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cwf-row.unread .cwf-rm b,.cwf-row.unread .cwf-rm small{opacity:1;font-weight:800}
+.btn.mini-b{min-height:30px;padding:0 10px;font-size:.72rem;font-weight:800;flex:none;white-space:nowrap}
+.cwf-row .cw-badge{flex:none}
+.cw-st.offl::after{background:#94a3b8}
+
+/* ---- a private conversation window ---- */
+.cwf-wh{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 10px;background:var(--acc);color:var(--acci);cursor:pointer;user-select:none;-webkit-user-select:none;flex:none;outline:0}
+.cwf-wh:focus-visible{box-shadow:inset 0 0 0 2px var(--acci)}
+.cwf-wt{flex:1;min-width:0;display:grid;line-height:1.15}
+.cwf-wt b{font-family:Fredoka,system-ui,sans-serif;font-size:.95rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cwf-wt small{font-size:.64rem;font-weight:700;opacity:.9;display:flex;align-items:center;gap:5px}
+.cwf-wh .cw-ib{width:28px;height:28px;min-width:28px;font-size:.9rem}
+.cwf-wh .cw-badge{border:2px solid var(--acc)}
+.cwf-win.min.unread .cwf-wh{animation:cwfblink 1.4s ease-in-out infinite}
+@keyframes cwfblink{50%{filter:brightness(1.25)}}
+.cwf-wav .cw-st::after{border-color:var(--acc)}
+.cwf-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:6px 8px 4px;scrollbar-width:thin;outline:0}
+.cwf-log.has::before{content:"";flex:1 0 0}
+.cwf-log .cw-empty{padding:18px 12px}
+.cwf-m{position:relative;display:flex;flex-direction:column;align-items:flex-start;margin-top:8px;outline:0}
+.cwf-m.grp{margin-top:2px}
+.cwf-m.mine{align-items:flex-end}
+.cwf-b{max-width:88%;padding:7px 11px;border-radius:16px 16px 16px 5px;background:var(--soft);border:1px solid var(--bd);font-size:.85rem;font-weight:600;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
+.cwf-m.mine .cwf-b{border-radius:16px 16px 5px 16px;background:var(--acc);color:var(--acci);border-color:var(--acc)}
+.cwf-m.mine .cwf-b a{color:inherit}
+.cwf-b a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}
+.cwf-m time{font-size:.56rem;font-weight:700;opacity:0;padding:1px 6px;transition:opacity .15s}
+.cwf-m:hover time,.cwf-m:focus-within time{opacity:.55}
+.cwf-m .cw-act{top:-14px;right:auto;left:auto}
+.cwf-m.mine .cw-act{right:6px}
+.cwf-m:not(.mine) .cw-act{display:none!important}
+.cwf-m:hover .cw-act,.cwf-m:focus-within .cw-act{display:flex}
+.cwf-form{display:flex;align-items:flex-end;gap:8px;padding:8px 10px 10px;border-top:1px solid var(--bd);flex:none}
+.cwf-form textarea{flex:1;min-width:0;min-height:40px;max-height:88px;resize:none;border:1px solid var(--bd);background:var(--soft);color:inherit;border-radius:18px;padding:9px 13px;font:inherit;font-weight:600;font-size:.86rem;line-height:1.3}
+.cwf-form textarea:focus{border-color:var(--acc)}
+.cwf-win .cw-typing{padding:0 12px}
+
+/* ---- Add friend / Message buttons in the profile dialog ---- */
+.cwf-prow{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0 8px}
+.cwf-prow .btn{flex:1 1 auto;white-space:nowrap}
+.cwf-perr{flex-basis:100%;margin:0;text-align:center;font-size:.76rem;font-weight:700;color:#dc2626}
+.cwf-perr:empty{display:none}
+
+/* ---- phones: one bottom sheet at a time ---- */
+@media(max-width:700px){
+  .cwf-panel,.cwf-win{position:fixed;left:0;right:0;top:auto;bottom:calc(var(--cw-m-bottom,127px) + var(--safe-b));width:auto;max-height:none;height:min(78dvh,600px,calc(100dvh - var(--cw-m-bottom,127px) - var(--safe-b) - 36px));border-radius:22px 22px 14px 14px;z-index:47}
+  .cwf-win.min{display:none}
+  .cwf-wh{cursor:default}
+  .cwf-form{padding-bottom:calc(10px + var(--safe-b))}
+  .cwf-form textarea,.cwf-search input{font-size:16px}
+  .cwf-m .cw-act button{width:36px;height:34px}
+  .cwf-fab{right:calc(14px + var(--safe-r))}
+  body.cwf-sheet .cw-pill{display:none}
+}
+@media(prefers-reduced-motion:reduce){.cwf-win.min.unread .cwf-wh{animation:none}}

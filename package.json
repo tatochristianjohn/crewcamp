@@ -1,0 +1,17 @@
+{
+  "name": "crewcamp",
+  "version": "2.17.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  },
+  "scripts": {
+    "test": "node test/smoke.mjs",
+    "deploy": "bash scripts/deploy.sh",
+    "verify": "node scripts/verify.mjs"
+  }
+}

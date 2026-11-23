@@ -1,0 +1,188 @@
+/* ===== CrewCamp group chat — floating dock (bottom-right) =====
+   Built only from CrewCamp's own tokens (--panel --bd --soft --acc --acci --sh --r --ctl), so every theme
+   (White / Dark / Pink / CEPALCO) just works. Layout idea: Facebook chat dock; content idea: Discord. */
+body.cw-on{padding-bottom:calc(78px + var(--safe-b) + var(--cw-lift))}
+body.cw-drag{user-select:none;-webkit-user-select:none;cursor:grabbing}
+.cw{--cw-lift:64px;--cw-w:340px;--cw-h:min(540px,calc(100dvh - 96px - var(--cw-lift)));--cw-mw:232px}
+.cw-pill,.cw-win,.cw-mem{position:fixed;z-index:45;color:var(--ink);background:var(--panel);border:1px solid var(--bd);box-shadow:var(--sh)}
+.th-cepalco .cw-pill,.th-cepalco .cw-win,.th-cepalco .cw-mem{border-width:3px}
+.cw-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#22c55e;flex:none}
+
+/* ---- minimized pill ---- */
+.cw-pill{right:calc(14px + var(--safe-r));bottom:calc(14px + var(--safe-b) + var(--cw-lift));display:inline-flex;align-items:center;gap:8px;min-height:var(--ctl);padding:0 16px;border-radius:99px;font:inherit;font-weight:800;font-size:.85rem;transition:transform .1s,border-color .15s}
+.cw-pill:hover{border-color:var(--acc)}
+.cw-pill:active{transform:scale(.97)}
+.cw-live{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;opacity:.8}
+.cw-badge{font-style:normal;font-size:.65rem;font-weight:800;min-width:20px;height:20px;padding:0 6px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;line-height:1}
+
+/* ---- chat window ---- */
+.cw-win{right:calc(14px + var(--safe-r));bottom:calc(14px + var(--safe-b) + var(--cw-lift));width:var(--cw-w);height:var(--cw-h);display:flex;flex-direction:column;border-radius:20px;overflow:hidden;animation:pop .18s ease-out}
+.cw-win.moved{right:auto;bottom:auto}
+.cw.dragging .cw-win{box-shadow:0 18px 40px -8px rgba(0,0,0,.38)}
+.th-cepalco .cw.dragging .cw-win{box-shadow:9px 9px 0 #000}
+.cw-head{display:flex;align-items:center;gap:6px;padding:9px 8px 9px 14px;background:var(--acc);color:var(--acci);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;flex:none}
+.cw.dragging .cw-head{cursor:grabbing}
+.cw-title{flex:1;min-width:0;display:grid;line-height:1.15}
+.cw-title b{font-family:Fredoka,system-ui,sans-serif;font-size:.98rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-title small{font-size:.66rem;font-weight:700;opacity:.85;display:flex;align-items:center;gap:5px}
+.cw-ib{width:32px;height:32px;min-width:32px;border-radius:50%;border:0;background:rgba(255,255,255,.2);color:inherit;font-weight:800;font-size:.95rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;transition:background-color .15s,transform .1s}
+.cw-ib:hover{background:rgba(255,255,255,.34)}
+.cw-ib[aria-expanded=true]{background:rgba(255,255,255,.4)}
+.cw-mem .cw-ib{background:var(--soft);border:1px solid var(--bd);color:var(--ink)}
+.cw-mem .cw-ib:hover{border-color:var(--acc)}
+
+/* channel tabs */
+.cw-chans{display:flex;gap:6px;padding:8px 10px;overflow-x:auto;background:var(--soft);border-bottom:1px solid var(--bd);flex:none;scrollbar-width:thin}
+.cw-ch{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 11px;border-radius:99px;border:1px solid var(--bd);background:var(--panel);color:inherit;font-weight:800;font-size:.72rem;opacity:.85;white-space:nowrap;transition:border-color .15s,background-color .15s}
+.cw-ch:hover{border-color:var(--acc);opacity:1}
+.cw-ch.on{background:var(--acc);color:var(--acci);border-color:var(--acc);opacity:1}
+.cw-ch.ghost{border-style:dashed;background:transparent;padding:0 9px}
+.cw-ch .cw-badge{height:16px;min-width:16px;font-size:.6rem;padding:0 4px}
+
+/* messages */
+.cw-log{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;padding:6px 0 4px;scrollbar-width:thin}
+.cw-log.has::before{content:"";flex:1 0 0}
+.cw-empty{margin:auto;text-align:center;font-size:.82rem;font-weight:700;opacity:.65;padding:24px 18px;line-height:1.5}
+.cw-empty b{display:block;font-family:Fredoka,system-ui,sans-serif;font-size:1rem}
+.cw-day{display:flex;align-items:center;gap:8px;margin:10px 14px 4px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;opacity:.6}
+.cw-day::before,.cw-day::after{content:"";flex:1;height:1px;background:var(--bd)}
+.cw-msg{position:relative;display:grid;grid-template-columns:30px 1fr;gap:9px;padding:3px 12px;margin:0 4px;border-radius:10px;outline:0}
+.cw-msg:not(.grp){margin-top:8px}
+.cw-msg:hover,.cw-msg:focus-within{background:var(--soft)}
+.cw-msg:focus-visible{box-shadow:inset 0 0 0 2px var(--acc)}
+.cw-msg .av.sm{width:30px;height:30px;font-size:.72rem;margin-top:2px}
+.cw-gt{font-size:.55rem;font-weight:700;text-align:center;opacity:0;padding-top:4px}
+.cw-msg:hover .cw-gt,.cw-msg:focus-within .cw-gt{opacity:.5}
+.cw-body{min-width:0}
+.cw-meta{display:flex;align-items:baseline;gap:7px}
+.cw-nm{font-size:.82rem;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-admin{color:#d97706}.r-host{color:#0d9488}
+.th-dark .r-admin{color:#fbbf24}.th-dark .r-host{color:#2dd4bf}
+.cw-meta time{font-size:.6rem;font-weight:700;opacity:.55;white-space:nowrap}
+.cw-tx{font-size:.86rem;font-weight:600;line-height:1.38;white-space:pre-wrap;overflow-wrap:anywhere}
+.cw-tx a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}
+.cw-ed{font-style:normal;font-size:.6rem;font-weight:700;opacity:.5;margin-left:5px}
+.cw-act{position:absolute;top:-12px;right:8px;display:none;gap:2px;padding:2px;background:var(--panel);border:1px solid var(--bd);border-radius:10px;box-shadow:var(--sh);z-index:1}
+.cw-msg:hover .cw-act,.cw-msg:focus-within .cw-act{display:flex}
+.cw-act button{width:30px;height:28px;border:0;border-radius:8px;background:transparent;font-size:.8rem;padding:0}
+.cw-act button:hover{background:var(--soft)}
+
+.cw-typing{height:20px;padding:0 14px;font-size:.68rem;font-weight:700;opacity:.7;flex:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:20px}
+.cw-typing.err{color:#dc2626;opacity:1}
+.cw-edit{display:flex;justify-content:space-between;align-items:center;padding:5px 14px;font-size:.7rem;font-weight:800;background:var(--soft);border-top:1px solid var(--bd);flex:none}
+.cw-edit button{border:0;background:none;color:var(--acc);font-weight:800;font-size:.7rem;text-decoration:underline;padding:2px 4px}
+.cw-form{display:flex;align-items:flex-end;gap:8px;padding:8px 10px 10px;border-top:1px solid var(--bd);flex:none}
+.cw-form textarea{flex:1;min-width:0;min-height:40px;max-height:96px;resize:none;border:1px solid var(--bd);background:var(--soft);color:inherit;border-radius:14px;padding:9px 12px;font:inherit;font-weight:600;font-size:.88rem;line-height:1.3}
+.cw-form textarea:focus{border-color:var(--acc)}
+.cw-send{min-height:40px!important;width:44px;padding:0!important;border-radius:14px!important;flex:none}
+
+/* ---- pop-out: who's online (opens when the chat is dragged, or with the 👥 button) ---- */
+.cw-mem{width:var(--cw-mw);border-radius:20px;overflow-y:auto;padding:10px 8px 12px;animation:pop .18s ease-out;scrollbar-width:thin}
+.cw-mh{display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 8px}
+.cw-mh b{font-family:Fredoka,system-ui,sans-serif;font-size:.95rem;font-weight:600}
+.cw-mem h4{font-family:inherit;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin:12px 8px 4px}
+.cw-row{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:10px;font-weight:800;font-size:.82rem}
+.cw-row:hover{background:var(--soft)}
+.cw-row>b{font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-st{position:relative;display:inline-flex;flex:none}
+.cw-st::after{content:"";position:absolute;right:-3px;bottom:-3px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid var(--panel)}
+.cw-you{font-size:.6rem;font-weight:700;opacity:.55}
+.cw-dots{display:inline-flex;gap:2px;margin-left:auto}
+.cw-dots i{width:4px;height:4px;border-radius:50%;background:var(--acc);animation:cwb 1s infinite ease-in-out}
+.cw-dots i:nth-child(2){animation-delay:.15s}.cw-dots i:nth-child(3){animation-delay:.3s}
+@keyframes cwb{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-3px);opacity:1}}
+.cw-off{margin:14px 8px 0;font-size:.7rem;font-weight:700;opacity:.55}
+.cw-none{margin:10px 8px;font-size:.78rem;font-weight:700;opacity:.6}
+
+/* ---- phones: bottom sheet, like CrewCamp's dialogs ---- */
+@media(max-width:700px){
+  :root{--cw-m-bottom:127px}   /* gap between the bottom of the screen and the chat's bottom edge on phones: level with the bottom of the calendar's lowest row of boxes (measured on a real Android phone) and 74 px above the Netlify badge. Tune here. */
+  .cw,.cwf{--cw-lift:calc(var(--cw-m-bottom) - 14px)}   /* the round "💬 Group chat" button + the DM dock */
+  .cw{--cw-h:min(78dvh,600px,calc(100dvh - var(--cw-m-bottom) - var(--safe-b) - 36px))}
+  .cw-win,.cw-win.moved,.cw-mem{left:0;right:0;bottom:calc(var(--cw-m-bottom) + var(--safe-b));top:auto;width:auto;height:var(--cw-h);border-radius:22px 22px 14px 14px}
+  .cw-mem{z-index:46;padding:14px 8px calc(12px + var(--safe-b))}
+  .cw-form{padding-bottom:10px}
+  .cw-head{cursor:default;touch-action:auto}
+  .cw-form textarea{font-size:16px}
+  .cw-act{top:-12px}
+  .cw-act button{width:36px;height:34px}
+  .cw-msg{padding:5px 12px}
+}
+@media(prefers-reduced-motion:reduce){.cw-dots i{animation:none}}
+
+/* ---- make the pill easy to find ---- */
+.cw-pill{background:var(--acc);color:var(--acci);border-color:var(--acc);font-size:.95rem;min-height:calc(var(--ctl) + 6px);padding:0 20px;touch-action:none;cursor:grab;animation:cwpulse 2.4s ease-out 3}
+.cw-pill.drag{cursor:grabbing;transition:none}
+.cw-pill .cw-live{opacity:.95}
+@keyframes cwpulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 55%,transparent)}70%,100%{box-shadow:0 0 0 16px transparent}}
+
+.th-midnight .r-admin,.th-graphite .r-admin{color:#fbbf24}.th-midnight .r-host,.th-graphite .r-host{color:#2dd4bf}
+
+/* emoji picker: one quiet row above the composer */
+.cw-emob{width:36px;height:40px;flex:none;border:0;background:transparent;border-radius:12px;font-size:1.15rem;line-height:1;padding:0;opacity:.6;filter:grayscale(.5);transition:opacity .15s,background-color .15s,filter .15s}
+.cw-emob:hover,.cw-emob[aria-expanded=true]{opacity:1;filter:none;background:var(--soft)}
+.cw-emo{display:flex;flex-wrap:wrap;gap:2px;padding:6px 10px;border-top:1px solid var(--bd);background:var(--panel);flex:none}
+.cw-emo button{width:34px;height:34px;border:0;background:transparent;border-radius:10px;font-size:1.15rem;line-height:1;padding:0}
+.cw-emo button:hover{background:var(--soft)}
+
+/* clickable people + profile viewer */
+.cw-row[data-pid]{cursor:pointer}
+.cw-row.off{opacity:.6}.cw-row.off:hover{opacity:1}
+.cw-av,.cw-nm{cursor:pointer}
+.pv-st{font-size:.72rem;font-weight:800;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:var(--soft);border:1px solid var(--bd);opacity:.8}
+.pv-st.on{opacity:1}
+.pv-dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:6px 0 2px;font-size:.82rem}
+.pv-dl dt{font-weight:800;opacity:.6}.pv-dl dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
+.pv-hid{text-align:center;margin:6px 0}
+.cw-row.off .cw-st::after{background:#94a3b8}
+
+/* ---- which server this chat belongs to (header chip) + switcher on the cross-server page ---- */
+.cw-svbar{position:relative;flex:none;padding:6px 10px 0}
+.cw-svchip{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:3px 10px 3px 4px;border:1px solid var(--bd);border-radius:99px;background:var(--soft);color:inherit;font:inherit;font-weight:800;font-size:.78rem;text-align:left;cursor:default}
+.cw-svchip:disabled{opacity:1;color:inherit}
+.cw-svchip.multi{cursor:pointer}.cw-svchip.multi:hover{border-color:var(--acc)}
+.cw-svchip:focus-visible,.cw-svo:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.cw-svi{flex:0 0 24px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:800 .62rem system-ui,sans-serif;font-style:normal;color:#fff}
+.cw-svn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-svc{opacity:.6;font-size:.7rem}
+.cw-svmenu{position:absolute;z-index:5;left:10px;right:10px;top:calc(100% + 4px);max-height:220px;overflow-y:auto;padding:4px;border:1px solid var(--bd);border-radius:14px;background:var(--panel);box-shadow:var(--sh)}
+.cw-svmenu[hidden]{display:none}
+.cw-svo{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:3px 8px 3px 4px;border:0;border-radius:10px;background:none;color:inherit;font:inherit;font-weight:700;font-size:.8rem;text-align:left;cursor:pointer}
+.cw-svo:hover{background:var(--soft)}.cw-svo.on{background:var(--soft);box-shadow:inset 3px 0 0 var(--acc)}
+.cw-pill .cw-pn{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-ib.cw-call,#cwCall,.cwf-wh [data-a=call]{width:auto;padding:0 10px;border-radius:99px;gap:4px;white-space:nowrap}
+
+/* ---- ongoing-call notice: one small line, same look in the group chat and in private chats ---- */
+.cw-callbar{display:flex;align-items:center;gap:7px;flex:none;min-width:0;padding:5px 12px;font-size:.72rem;font-weight:600;background:var(--soft);border-bottom:1px solid var(--bd)}
+.cw-callbar[hidden]{display:none}
+.cw-callbar>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.9}
+.cw-callbar b{font-weight:800}
+.cw-callbar em{flex:none;font-style:normal;opacity:.6}
+.cw-cdot{flex:none;width:8px;height:8px;border-radius:50%;background:#22c55e;animation:cwcall 1.8s ease-out infinite}
+@keyframes cwcall{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}100%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
+.cw-cjoin{flex:none;border:0;border-radius:99px;padding:3px 12px;min-height:24px;background:var(--acc);color:var(--acci);font:inherit;font-size:.72rem;font-weight:800;cursor:pointer}
+.cw-cjoin:active{transform:scale(.96)}
+@media(pointer:coarse){.cw-cjoin{min-height:30px;padding:0 14px}}
+.cw-cv{font-style:normal;font-size:.7rem;margin-left:3px}
+.cw-pcall{font-size:.8rem;line-height:1}
+.cw-pcall[hidden]{display:none}
+@media(prefers-reduced-motion:reduce){.cw-cdot{animation:none}}
+
+/* ---- file attachments (15-minute files in the group chat and in private messages) ---- */
+.cw-att{display:flex;align-items:center;gap:9px;margin-top:5px;max-width:100%;padding:7px 10px;border-radius:12px;border:1px solid color-mix(in srgb,currentColor 22%,transparent);background:color-mix(in srgb,currentColor 7%,transparent);color:inherit;font-size:.8rem;font-weight:700;text-decoration:none!important;line-height:1.25}
+.cw-tx+.cw-att,.cwf-b .cw-att:not(:first-child){margin-top:6px}
+.cwf-b .cw-att:first-child{margin-top:0}
+.cw-att.file{cursor:pointer}.cw-att.file:hover{border-color:var(--acc)}
+.cw-attn{display:grid;min-width:0;overflow-wrap:anywhere}
+.cw-attn small,.cw-att.img>small{font-size:.66rem;font-weight:700;opacity:.7}
+.cw-att-t{font-weight:800}
+.cw-att.gone{opacity:.6;border-style:dashed}
+.cw-att.img{display:grid;gap:3px;padding:4px;width:fit-content;max-width:100%}
+.cw-attimg{display:block;padding:0;border:0;background:none;border-radius:9px;overflow:hidden;cursor:zoom-in;min-width:96px;min-height:64px}
+.cw-attimg img{display:block;max-width:100%;max-height:220px;border-radius:9px;background:color-mix(in srgb,currentColor 10%,transparent)}
+.cw-att.img.loading .cw-attimg{min-width:140px;min-height:90px;animation:cwatt 1.2s ease-in-out infinite;background:color-mix(in srgb,currentColor 12%,transparent)}
+.cw-att.img.loading img,.cw-att.img.bad img{display:none}
+@keyframes cwatt{50%{opacity:.5}}
+.cw-att.img>small{padding:0 4px 2px}
+.cwf-b .cw-attimg img{max-width:min(230px,100%)}
+@media(prefers-reduced-motion:reduce){.cw-att.img.loading .cw-attimg{animation:none}}
