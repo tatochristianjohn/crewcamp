@@ -14,6 +14,16 @@ export default async () => {
     if (Number.isFinite(exp) && exp <= now) { await st.delete(b.key).catch(() => {}); gone++; }
   }
   console.log(`sweep: ${blobs.length} attachment(s) found, ${gone} expired removed`);
+  // chess: drop finished/abandoned game blobs (lobby index entries already expire on their own). Only runs a read per game, so it is skipped when there are none.
+  const GAME_KEEP = 7 * 864e5, WAIT_KEEP = 864e5, ACTIVE_KEEP = 3 * 864e5;
+  const games = (await st.list({ prefix: 'chess:g:' })).blobs; let cg = 0;
+  for (const b of games) {
+    const g = await st.get(b.key, { type: 'json' }).catch(() => null);
+    if (!g) continue;
+    const age = now - (g.updated || g.created || 0), lim = g.status === 'finished' ? GAME_KEEP : g.status === 'waiting' ? WAIT_KEEP : ACTIVE_KEEP;
+    if (age > lim) { await st.delete(b.key).catch(() => {}); cg++; }
+  }
+  console.log(`sweep: ${games.length} chess game(s) found, ${cg} removed`);
 };
 
 export const config = { schedule: '*/15 * * * *' };

@@ -1,7 +1,7 @@
 /* CrewCamp service worker: installable app + offline fallback.
    Network-first for pages/scripts/styles (everyone always gets the newest version), cache only as a fallback.
    /api/* is never cached or intercepted. Bump V to drop old caches. */
-const V = 'cc-v3', SHELL = ['login.html', 'logo.svg', 'icon-192.png', 'style.css', 'icons.js', 'auth.js'];
+const V = 'cc-v9', SHELL = ['login.html', 'games.html', 'chess.js', 'chess.css', 'logo.svg', 'icon-192.png', 'style.css', 'icons.js', 'auth.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

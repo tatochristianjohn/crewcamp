@@ -20,6 +20,7 @@ export { data };`;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'stb-'));
 fs.writeFileSync(path.join(tmp, 'blobs-mock.mjs'), MOCK);
+for (const f of ['chess-api.mjs', 'chess-engine.mjs']) fs.copyFileSync(path.join(here, '../netlify/functions', f), path.join(tmp, f));
 fs.writeFileSync(path.join(tmp, 'api.mjs'), fs.readFileSync(path.join(here, '../netlify/functions/api.mjs'), 'utf8').replace("'@netlify/blobs'", "'./blobs-mock.mjs'"));
 process.env.ADMIN_INITIAL_PASSWORD = 'test-password-123';
 const mockData = (await import(pathToFileURL(path.join(tmp, 'blobs-mock.mjs')).href)).data;

@@ -1,6 +1,6 @@
 /* Discord-style server rail (left, hover to expand) + create/join/settings dialogs. Needs auth.js (api()). */
 (function(){
-const DEF='cepalco',KEY='stb_sv',cur=()=>localStorage.getItem(KEY)||DEF,ONX=/(^|\/)(cross(\.html)?)?$/.test(location.pathname)   /* the hub is also served at "/" (Netlify rewrite) */;
+const ONG=/games(\.html)?$/.test(location.pathname),DEF='cepalco',KEY='stb_sv',cur=()=>localStorage.getItem(KEY)||DEF,ONX=/(^|\/)(cross(\.html)?)?$/.test(location.pathname)   /* the hub is also served at "/" (Netlify rewrite) */;
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ROLE={admin:'Head',host:'Supervisor',staff:'Staff'};
 const css=`
@@ -184,20 +184,20 @@ function infoDlg(){
 }
 /* ---------- notifications (bell lives in the server menu) ---------- */
 const TASKT=['assigned','done','all_done','closed'];   // only task notifications belong to a server -> shown as (Server name); friend requests, posts and replies are global
-const NI={assigned:'📌',done:'✅',all_done:'🎉',closed:'🔒',friend_req:'🤝',friend_ok:'🤝',post_like:'❤️',post_reply:'💬'};
+const NI={assigned:'📌',done:'✅',all_done:'🎉',closed:'🔒',friend_req:'🤝',friend_ok:'🤝',post_like:'❤️',post_reply:'💬',chess_turn:'♞',chess_join:'♞',chess_rematch:'♞',chess_challenge:'♞'};
 const ago=ms=>{const s=Math.max(1,Math.floor((Date.now()-ms)/1000));if(s<60)return 'Just now';const m=Math.floor(s/60);if(m<60)return m+'m ago';const h=Math.floor(m/60);if(h<24)return h+'h ago';const d=Math.floor(h/24);return d<7?d+'d ago':new Date(ms).toLocaleDateString('en-PH',{month:'short',day:'numeric',timeZone:'Asia/Manila'})};
 const NT={items:[],f:'all',last:-1,
   svName(n){if(!TASKT.includes(n.type)||!n.sv)return '';const x=LIST.find(v=>v.id===n.sv);return x?x.name:(n.svName||'')},   // current name if I'm still in that server, else the name saved with the notification
   text(n){const b=`<b>${esc(n.byName||'Someone')}</b>`,t=`<b>${esc(n.title||'a task')}</b>`;
     return n.type==='assigned'?`${b} assigned you a task: ${t}`:n.type==='done'?`${b} marked ${t} as done`:n.type==='all_done'?`Everyone finished ${t} (last: ${b})`:n.type==='closed'?`${b} closed ${t} for everyone`
-      :n.type==='friend_req'?`${b} sent you a friend request`:n.type==='friend_ok'?`${b} accepted your friend request`:n.type==='post_like'?`${b} liked your post: ${t}`:n.type==='post_reply'?`${b} replied to your post: ${t}`:`${b} updated ${t}`},
+      :n.type==='friend_req'?`${b} sent you a friend request`:n.type==='friend_ok'?`${b} accepted your friend request`:n.type==='post_like'?`${b} liked your post: ${t}`:n.type==='post_reply'?`${b} replied to your post: ${t}`:n.type==='chess_turn'?`${b} moved. Your turn in chess`:n.type==='chess_join'?`${b} joined your chess table`:n.type==='chess_rematch'?`${b} offered a chess rematch`:n.type==='chess_challenge'?`${b} challenged you to chess`:`${b} updated ${t}`},
   render(){
     const un=this.items.filter(n=>!n.read).length,bd=document.querySelector('#svNt .svb');
     if(bd){bd.textContent=un>9?'9+':un;bd.hidden=!un}
     const bt=document.getElementById('svNt');if(bt)bt.setAttribute('aria-label',un?`Notifications, ${un} unread`:'Notifications');
     const ul=document.getElementById('nList');if(!ul)return;
     const L=this.items.filter(n=>this.f==='all'||!n.read);
-    ul.innerHTML=L.length?L.map(n=>{const sv=this.svName(n);return `<li class="nitem${n.read?'':' unread'}" data-id="${esc(n.id)}" data-t="${esc(n.type)}" data-d="${esc(n.date||'')}" data-sv="${esc(n.sv||'')}"><span class="nic">${NI[n.type]||'🔔'}</span><div class="ntxt">${this.text(n)}${sv?` <span class="nsv">(${esc(sv)})</span>`:''}<small>${ago(n.t)}</small></div><span class="ndot"></span></li>`}).join(''):`<li class="nempty">${this.f==='all'?'No notifications yet':'No unread notifications'}</li>`;
+    ul.innerHTML=L.length?L.map(n=>{const sv=this.svName(n);return `<li class="nitem${n.read?'':' unread'}" data-id="${esc(n.id)}" data-t="${esc(n.type)}" data-d="${esc(n.date||'')}" data-sv="${esc(n.sv||'')}" data-g="${esc(n.gid||'')}"><span class="nic">${NI[n.type]||'🔔'}</span><div class="ntxt">${this.text(n)}${sv?` <span class="nsv">(${esc(sv)})</span>`:''}<small>${ago(n.t)}</small></div><span class="ndot"></span></li>`}).join(''):`<li class="nempty">${this.f==='all'?'No notifications yet':'No unread notifications'}</li>`;
   },
   async load(){
     try{const r=await api('/api/notifications');this.items=r.items||[];
@@ -221,6 +221,7 @@ const NT={items:[],f:'all',last:-1,
     p.querySelector('#nList').onclick=e=>{
       const li=e.target.closest('.nitem');if(!li)return;const t=li.dataset.t;
       this.read([li.dataset.id]);this.toggle(false);
+      if(t.startsWith('chess_'))return location.assign('games.html'+(/^[a-f0-9]{10}$/.test(li.dataset.g||'')?'#'+li.dataset.g:''));
       if(t==='friend_req'||t==='friend_ok')return window.__cwF?window.__cwF.openPanel(t==='friend_req'?'requests':'friends'):location.assign('index.html?friends=1');
       if(t==='post_like'||t==='post_reply')return window.openProfile?window.openProfile():location.assign('index.html?profile=1');
       const d=li.dataset.d,sv=li.dataset.sv||DEF;   // task: open that server's Shared calendar on the task's date
@@ -282,8 +283,8 @@ function build(){
   document.body.classList.add('hasrail');
   const r=document.createElement('nav');r.id='svRail';r.setAttribute('aria-label','Servers');
   const nm=ME?(ME.name||ME.username):'Profile',av=ME&&ME.avatarAt?`<img alt="" src="/api/avatar?v=${ME.avatarAt}" onerror="this.remove()">`:'';
-  r.innerHTML='<div class="svl"><button class="svi nt" id="svNt" title="Notifications" aria-label="Notifications" aria-haspopup="true" aria-expanded="false"><i style="background:var(--soft,#eee);color:inherit;border:1px solid var(--bd,#ddd);font-size:1.15rem">🔔</i><em class="svb" hidden></em><span>Notifications<small>Tasks, friends &amp; posts</small></span></button><hr style="margin:2px 4px"><div class="svh">Servers</div><button class="svi xs'+(ONX?' on':'')+'" id="svCross" title="Cross-server Calendar" aria-label="Cross-server Calendar"'+(ONX?' aria-current="page"':'')+'><i style="background:#2f66b8">🗓</i><span>Cross-server Calendar<small>All servers · personal + shared</small></span></button><hr style="margin:2px 4px">'+LIST.map(s=>`<button class="svi${s.id===cur()&&!ONX?' on':''}" data-id="${esc(s.id)}" title="${esc(s.name)}" aria-label="${esc(s.name)}"${s.id===cur()?' aria-current="true"':''}>${icon(s)}<em class="svb" data-sv="${esc(s.id)}" hidden></em><span>${esc(s.name)}<small>${esc(ROLE[s.role]||'')}</small></span></button>`).join('')
-   +'<button class="svi add" id="svAdd" title="Create or join a server"><i>＋</i><span>Add a server</span></button></div>'
+  r.innerHTML='<div class="svl"><button class="svi nt" id="svNt" title="Notifications" aria-label="Notifications" aria-haspopup="true" aria-expanded="false"><i style="background:var(--soft,#eee);color:inherit;border:1px solid var(--bd,#ddd);font-size:1.15rem">🔔</i><em class="svb" hidden></em><span>Notifications<small>Tasks, friends &amp; posts</small></span></button><hr style="margin:2px 4px"><div class="svh">Servers</div><button class="svi xs'+(ONX?' on':'')+'" id="svCross" title="Cross-server Calendar" aria-label="Cross-server Calendar"'+(ONX?' aria-current="page"':'')+'><i style="background:#2f66b8">🗓</i><span>Cross-server Calendar<small>All servers · personal + shared</small></span></button><hr style="margin:2px 4px">'+LIST.map(s=>`<button class="svi${s.id===cur()&&!ONX&&!ONG?' on':''}" data-id="${esc(s.id)}" title="${esc(s.name)}" aria-label="${esc(s.name)}"${s.id===cur()?' aria-current="true"':''}>${icon(s)}<em class="svb" data-sv="${esc(s.id)}" hidden></em><span>${esc(s.name)}<small>${esc(ROLE[s.role]||'')}</small></span></button>`).join('')
+   +'<button class="svi add" id="svAdd" title="Create or join a server"><i>＋</i><span>Add a server</span></button><hr style="margin:2px 4px"><button class="svi gm'+(ONG?' on':'')+'" id="svGames" title="Games" aria-label="Games"'+(ONG?' aria-current="page"':'')+'><i style="background:var(--sec,#0d9488)">♞</i><span>Games<small>Chess &amp; more</small></span></button></div>'
    +'<hr><button class="svi fr" id="svFr" title="Friends &amp; private messages" aria-label="Friends and private messages"><i>🧑‍🤝‍🧑</i><em class="svb" hidden></em><span>Friends<small>Private messages</small></span></button>'
    +'<button class="svi cfg" id="svTh" title="Theme" aria-label="Theme" aria-haspopup="true" aria-expanded="false"><i style="font-size:1.1rem">🎨</i><span>Theme<small>Colors &amp; look</small></span></button>'
    +(SUPER?'<button class="svi cfg" id="svAdm" title="Admin: all servers"><i>🛡</i><span>Admin<small>All servers · manage anything</small></span></button>':'')
@@ -291,7 +292,7 @@ function build(){
    +'<button class="svi cfg" id="svCfg" title="Server info"><i>ⓘ</i><span>Server info</span></button>'
    +`<button class="svi me" id="svMe" title="My profile (all servers)"><span class="av">${av||esc(ini(nm))}</span><span>${esc(nm)}<small>My profile · all servers</small></span></button>`
    +'<button class="svi out" id="svOut" title="Log out"><i>⎋</i><span>Log out</span></button>';
-  r.onclick=e=>{const b=e.target.closest('.svi');if(!b)return;if(b.id==='svTh'){e.stopPropagation();r.classList.remove('open');return TH.toggle()}if(b.id==='svNt'){e.stopPropagation();r.classList.remove('open');return NT.toggle()}if(b.id==='svCross')return ONX?r.classList.remove('open'):location.assign('cross.html');if(b.id==='svAdd')return addDlg();if(b.id==='svCfg')return infoDlg();if(b.id==='svTm'){r.classList.remove('open');return teamDlg()}if(b.id==='svAdm')return location.assign('admin-servers.html');if(b.id==='svFr'){r.classList.remove('open');return window.__cwF?window.__cwF.toggle():location.assign('index.html?friends=1')}if(b.id==='svOut')return logout();if(b.id==='svMe')return window.openProfile?window.openProfile():location.assign('index.html?profile=1');go(b.dataset.id)};
+  r.onclick=e=>{const b=e.target.closest('.svi');if(!b)return;if(b.id==='svTh'){e.stopPropagation();r.classList.remove('open');return TH.toggle()}if(b.id==='svNt'){e.stopPropagation();r.classList.remove('open');return NT.toggle()}if(b.id==='svCross')return ONX?r.classList.remove('open'):location.assign('cross.html');if(b.id==='svGames')return ONG?r.classList.remove('open'):location.assign('games.html');if(b.id==='svAdd')return addDlg();if(b.id==='svCfg')return infoDlg();if(b.id==='svTm'){r.classList.remove('open');return teamDlg()}if(b.id==='svAdm')return location.assign('admin-servers.html');if(b.id==='svFr'){r.classList.remove('open');return window.__cwF?window.__cwF.toggle():location.assign('index.html?friends=1')}if(b.id==='svOut')return logout();if(b.id==='svMe')return window.openProfile?window.openProfile():location.assign('index.html?profile=1');go(b.dataset.id)};
   document.body.append(r);if(window.__cwF)window.__cwF.badges();NT.init();TH.init();
   const t=document.createElement('button');t.id='svTab';t.textContent='☰';t.setAttribute('aria-label','Servers');t.onclick=e=>{e.stopPropagation();r.classList.toggle('open')};document.body.append(t);
   document.addEventListener('click',e=>{if(!r.contains(e.target))r.classList.remove('open')});

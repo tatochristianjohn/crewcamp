@@ -64,3 +64,6 @@ CrewCamp is a work tool (calendars, tasks, chat for a team), not a landing page.
 - `🎉` toasts, and chat emoji (`🙂 😂 👍 ❤️ 🔥` etc.) were deliberately left as emoji because they are expressive, not chrome.
 - `npm test` shows the same 7 failures (Google sign-up tests) before and after; the backend was not touched.
 - I could not open the pages in a browser here, so please eyeball icon alignment on buttons once.
+
+## Games (chess)
+Rail button "Games" sits under "Add a server" and opens `games.html`. Chess styles live in `chess.css` and use only theme variables (board squares are `color-mix` of `--pri` and `--panel`). No emoji icons except the chess glyphs, which are text symbols.

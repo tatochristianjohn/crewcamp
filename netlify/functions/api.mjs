@@ -1,6 +1,7 @@
 // CrewCamp - Netlify Function API (routes: /api/*)
 // Storage: Netlify Blobs. Sessions: HttpOnly cookie + revocable server-side session blob.
 import { getStore } from '@netlify/blobs';
+import { chessApi } from './chess-api.mjs';
 import { scryptSync, randomBytes, timingSafeEqual, createHmac } from 'node:crypto';
 
 class HttpError extends Error { constructor(s, m) { super(m); this.status = s; } }
@@ -586,6 +587,11 @@ export default async (req) => {
     }
 
     // ----- cross-server calendar: my personal notes + every task assigned to me, across ALL my servers (global; ignores X-Server) -----
+    if (path.startsWith('/chess/')) {   // Games > Chess (global, not per server); see chess-api.mjs
+      const r = await chessApi({ path, m, body, me: meG, bs, mutate, J, H, query: new URL(req.url).searchParams, notify, areFriends: async id => (await frGet(st, meG.id)).f.includes(id) && (await frGet(st, id)).f.includes(me.id) });
+      if (r) return r;
+    }
+
     if (path === '/cross' && m === 'GET') {
       const list = await srvList();
       const svs = [...(meG.noDef && !isSuper ? [] : [{ id: DEF_SV, name: SV_NAME }]), ...list.filter(x => x.members[meG.id]).map(x => ({ id: x.id, name: x.name }))];
@@ -1415,7 +1421,7 @@ export default async (req) => {
     }
     throw H('Not found', 404);
   } catch (e) {
-    if (e instanceof HttpError) return J({ error: e.message }, e.status);
+    if (e instanceof HttpError) return J({ error: e.message, ...(e.extra || {}) }, e.status);
     console.error(e);
     return J({ error: 'Server error' }, 500);
   }
