@@ -4,12 +4,16 @@ import { randomBytes } from 'node:crypto';
 import * as E from './chess-engine.mjs';
 
 const ID = /^[a-f0-9]{10}$/, IDX = 'chess:idx', GK = id => 'chess:g:' + id;
-const WAIT_MS = 30 * 60e3, STALE_MS = 2 * 864e5, MINUTES = [1, 3, 5, 10, 15, 30], INCS = [0, 1, 2, 3, 5, 10], PING_GAP = 45e3, ABORT_MS = 90e3, SEEN_GAP = 15e3, ONLINE_MS = 40e3, MAX_OPEN = 30, CHAT_MAX = 100;
+const WAIT_MS = 60e3, STALE_MS = 60e3, FIN_KEEP = 10 * 60e3, MINUTES = [1, 3, 5, 10, 15, 30], INCS = [0, 1, 2, 3, 5, 10], PING_GAP = 45e3, ABORT_MS = 90e3, SEEN_GAP = 15e3, ONLINE_MS = 40e3, MAX_OPEN = 30, CHAT_MAX = 100, HOLD_MS = 6000, TICK_MS = 250, IDX_TOUCH = 6e5;
 const PUB = u => ({ id: u.id, name: u.name || u.username });
 
 export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, notify, areFriends }) {
-  const now = Date.now();
+  let now = Date.now();   // refreshed inside the long-poll loop
   const idxMut = fn => mutate(bs, IDX, () => ({ games: [] }), d => { d.games = d.games.filter(g => now - g.t < (g.s === 'waiting' ? WAIT_MS : STALE_MS)); return fn(d); });
+  // Nothing is kept for long: a table (waiting OR active) nobody has been on for 1 minute is abandoned and deleted; finished games are dropped after FIN_KEEP.
+  const lastSeen = g => Math.max(g.created || 0, g.updated || 0, g.seen?.white || 0, g.seen?.black || 0);
+  const gone = g => ((g.status === 'waiting' || g.status === 'active') && now - lastSeen(g) > WAIT_MS) || (g.status === 'finished' && now - (g.updated || 0) > FIN_KEEP);
+  const drop = async id => { try { if (bs.delete) await bs.delete(GK(id)); } catch (e) { /* best effort */ } await idxMut(d => { d.games = d.games.filter(x => x.id !== id); }); };
   const load = async id => { if (!ID.test(String(id || ''))) throw H('Game not found.', 404); const g = await bs.get(GK(id), { type: 'json' }); if (!g) throw H('Game not found.', 404); return g; };
   const mine = g => g.white?.id === me.id ? 'white' : g.black?.id === me.id ? 'black' : null;
   const clocks = g => {
@@ -35,27 +39,43 @@ export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, not
       rematch: g.rematch ? { id: g.rematch.id, by_me: g.rematch.by === me.id } : null,
     };
   };
-  // flag a timeout on read, so a vanished opponent still loses on time
-  const settle = async id => mutate(bs, GK(id), () => { throw H('Game not found.', 404); }, async g => {
-    if (g.status === 'active' && g.moves.length < 2 && now - g.turnAt > ABORT_MS) { finish(g, null, 'aborted'); await idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }); return g; }   // nobody opened with a move: abort, no result
-    if (g.status === 'active') { const [w, b] = clocks(g); if ((g.turn === 'white' ? w : b) <= 0) { finish(g, g.turn === 'white' ? 'black' : 'white', 'timeout'); await idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }); } }
-    return g;
-  });
+  // flag a timeout on read, so a vanished opponent still loses on time. Cheap check first: a normal poll never writes.
+  const needsSettle = g => g.status === 'active' && ((g.moves.length < 2 && now - g.turnAt > ABORT_MS) || (() => { const [w, b] = clocks(g); return (g.turn === 'white' ? w : b) <= 0; })());
+  const settle = async (id, g0) => {
+    if (g0 && !needsSettle(g0)) return g0;
+    return mutate(bs, GK(id), () => { throw H('Game not found.', 404); }, async g => {
+      if (g.status === 'active' && g.moves.length < 2 && now - g.turnAt > ABORT_MS) { finish(g, null, 'aborted'); await idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }); return g; }   // nobody opened with a move: abort, no result
+      if (g.status === 'active') { const [w, b] = clocks(g); if ((g.turn === 'white' ? w : b) <= 0) { finish(g, g.turn === 'white' ? 'black' : 'white', 'timeout'); await idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }); } }
+      return g;
+    });
+  };
 
   if (path === '/chess/lobby' && m === 'GET') {
-    const d = (await bs.get(IDX, { type: 'json' })) || { games: [] };
+    let d = (await bs.get(IDX, { type: 'json' })) || { games: [] };
+    const dead = d.games.filter(g => now - g.t >= (g.s === 'waiting' ? WAIT_MS : STALE_MS));
+    if (dead.length) { for (const x of dead) { try { if (bs.delete) await bs.delete(GK(x.id)); } catch (e) { /* best effort */ } } d = await idxMut(d2 => d2) || d; }
     const open = d.games.filter(g => g.s === 'waiting' && now - g.t < WAIT_MS && g.host.id !== me.id && (!g.inv || g.inv === me.id)).map(g => ({ id: g.id, host: g.host.name, minutes: g.minutes, inc: g.inc || 0, color: g.hostColor, rematch: !!g.rem, challenge: !!g.inv && !g.rem }));
     const own = d.games.filter(g => g.p.includes(me.id) && (g.s === 'waiting' ? now - g.t < WAIT_MS : now - g.t < STALE_MS)).map(g => ({ id: g.id, status: g.s, minutes: g.minutes, inc: g.inc || 0, vs: g.s === 'waiting' ? null : g.p2name[g.host.id === me.id ? 1 : 0] }));
     const live = d.games.filter(g => g.s === 'active' && !g.p.includes(me.id) && now - g.t < STALE_MS).sort((a, b) => b.t - a.t).slice(0, 20).map(g => ({ id: g.id, white: g.p2name[0], black: g.p2name[1], minutes: g.minutes, inc: g.inc || 0 }));
     return J({ open, mine: own, live });
   }
   if (path === '/chess/game' && m === 'GET') {
-    const id = query.get('id'); await load(id);
-    const g = await settle(id);
+    const id = query.get('id'); let g = await load(id);
+    if (gone(g)) { await drop(id); throw H('That game closed because nobody was on it.', 404); }
     if (!mine(g) && g.status === 'waiting') throw H('That game is waiting for an opponent. Join it from the lobby.', 403);
+    // Long-poll: the client sends the rev it already has; we hold the request (up to HOLD_MS) and answer the moment something changes.
+    const since = +query.get('since') || 0;
+    if (since && query.get('wait') === '1' && g.updated === since) {
+      const end = Date.now() + HOLD_MS;
+      while (g.updated === since && !needsSettle(g) && Date.now() < end) {
+        await new Promise(r => setTimeout(r, TICK_MS)); now = Date.now(); g = await load(id);
+      }
+    }
+    now = Date.now();
+    g = await settle(id, g);
     const my = mine(g);
-    if (my && g.status === 'active' && now - (g.seen?.[my] || 0) > SEEN_GAP) {   // throttled presence stamp; does not touch rev
-      try { const g2 = await mutate(bs, GK(id), () => { throw H('Game not found.', 404); }, x => { x.seen = { ...(x.seen || {}), [my]: now }; return x; }); return J({ game: view(g2) }); } catch (e) { /* presence is best effort */ }
+    if (my && (g.status === 'active' || g.status === 'waiting') && now - (g.seen?.[my] || 0) > SEEN_GAP) {   // throttled presence stamp; does not touch rev. Also keeps the lobby entry alive.
+      try { const g2 = await mutate(bs, GK(id), () => { throw H('Game not found.', 404); }, x => { x.seen = { ...(x.seen || {}), [my]: now }; return x; }); await idxMut(d => { const x = d.games.find(y => y.id === id); if (x) x.t = now; }); return J({ game: view(g2) }); } catch (e) { /* presence is best effort */ }
     }
     return J({ game: view(g) });
   }
@@ -84,7 +104,7 @@ export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, not
       if (g.status !== 'waiting') throw H('That game already started.');
       if (mine(g)) throw H('You created this game. Wait for an opponent.');
       if (g.invite && g.invite !== me.id) throw H('That table is reserved for another player.', 403);
-      if (now - g.created > WAIT_MS) throw H('That game expired.');
+      if (gone(g)) throw H('That game expired.');
       if (!g.white) g.white = PUB(me); else g.black = PUB(me);
       g.status = 'active'; g.turnAt = now; g.updated = now; g.seen = { white: now, black: now }; return g;
     });
@@ -115,7 +135,7 @@ export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, not
       made = false;
       const my = mine(g); if (!my) throw H('Only the players can rematch.', 403);
       if (g.status !== 'finished' || !g.white || !g.black || g.reason === 'cancelled') throw H('Only a finished game can be replayed.');
-      if (!g.rematch) { g.rematch = { id: nid, by: me.id }; made = true; }
+      if (!g.rematch) { g.rematch = { id: nid, by: me.id }; made = true; g.updated = now; }
       opp = my === 'white' ? g.black : g.white; color = my === 'white' ? 'black' : 'white'; minutes = g.minutes; inc = g.inc || 0;
       return g;
     });
@@ -139,12 +159,13 @@ export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, not
     return J({ ok: 1 });
   }
   if (path === '/chess/move' && m === 'POST') {
-    await load(body.id); await settle(body.id);
-    let ended = false, ping = null;
+    if (!ID.test(String(body.id || ''))) throw H('Game not found.', 404);
+    let ended = false, ping = null, touch = false;
     const g = await mutate(bs, GK(body.id), () => { throw H('Game not found.', 404); }, g => {
-      ping = null;
+      ping = null; ended = false; touch = false;
       const my = mine(g);
       if (!my) throw H('You are not a player in this game.', 403);
+      if (needsSettle(g)) { if (g.moves.length < 2 && now - g.turnAt > ABORT_MS) finish(g, null, 'aborted'); else finish(g, g.turn === 'white' ? 'black' : 'white', 'timeout'); ended = true; return g; }   // flagged or abandoned: settle here instead of a separate read+write
       if (g.status !== 'active') throw H('The game is not active.');
       if (g.turn !== my) throw H('It is not your turn.');
       const s = E.parseFen(g.fen), from = E.sqIdx(String(body.from || '')), to = E.sqIdx(String(body.to || ''));
@@ -162,11 +183,14 @@ export async function chessApi({ path, m, body, me, bs, mutate, J, H, query, not
       const sanTxt = E.san(s, mv), ns = E.apply(s, mv), fen = E.toFen(ns);
       g.moves.push({ san: sanTxt, uci: E.uci(mv), color: my }); g.fen = fen; g.turn = ns.turn; g.hist.push(E.posKey(fen)); g.updated = now;
       const o = E.outcome(ns, g.hist); if (o) { finish(g, o.winner, o.reason); ended = true; }
-      if (!ended && now - oppSeen > PING_GAP) ping = g[opp].id;   // opponent has been quiet: nudge them (live players already see the board)
+      if (!ended && now - oppSeen > PING_GAP) ping = g[opp].id;
+      if (!ended && now - (g.idxT || 0) > IDX_TOUCH) { g.idxT = now; touch = true; }   // lobby index only needs a keep-alive now and then   // opponent has been quiet: nudge them (live players already see the board)
       return g;
     });
-    if (ended) await idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }); else await idxMut(d => { const x = d.games.find(y => y.id === g.id); if (x) x.t = now; });
-    if (ping && notify) await notify(bs, [ping], { type: 'chess_turn', by: me.id, byName: PUB(me).name, gid: g.id });
+    await Promise.all([
+      ended ? idxMut(d => { d.games = d.games.filter(x => x.id !== g.id); }) : touch ? idxMut(d => { const x = d.games.find(y => y.id === g.id); if (x) x.t = now; }) : null,
+      ping && notify ? notify(bs, [ping], { type: 'chess_turn', by: me.id, byName: PUB(me).name, gid: g.id }) : null,
+    ]);
     return J({ game: view(g) });
   }
   if (path === '/chess/draw' && m === 'POST') {

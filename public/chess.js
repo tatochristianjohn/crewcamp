@@ -3,7 +3,7 @@
 const $=s=>document.querySelector(s),esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const FILES='abcdefgh',RANKS='87654321',GLY={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
 const REASON={checkmate:'Checkmate',stalemate:'Stalemate, draw',insufficient_material:'Draw, insufficient material',seventyfive_move_rule:'Draw, 75-move rule',fivefold_repetition:'Draw, fivefold repetition',fifty_move_rule:'Draw, 50-move rule',threefold_repetition:'Draw, threefold repetition',resignation:'Resignation',agreement:'Draw by agreement',timeout:'Time out',aborted:'Game aborted, no one moved'};
-let chatKey='',G=null,sel=null,gid=null,snapAt=0,pend=null,busy=false,ME=null,timer=null,rv=null,flipped=false,lastN=-1,lastId='',mute=localStorage.getItem('cc_chess_mute')==='1';
+let chatKey='',G=null,sel=null,gid=null,snapAt=0,pend=null,busy=false,ME=null,timer=null,rv=null,flipped=false,lastN=-1,lastId='',opt=null,pollSeq=0,mute=localStorage.getItem('cc_chess_mute')==='1';
 const tc=g=>g.minutes+(g.inc?'+'+g.inc:'')+' min';
 const fmt=ms=>{const t=Math.max(0,Math.ceil(ms/1000));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0')};
 const toast=m=>{const t=$('#toast');if(!t)return;t.innerHTML='<div>'+esc(m)+'</div>';clearTimeout(toast.t);toast.t=setTimeout(()=>{t.innerHTML=''},2600)};
@@ -39,11 +39,13 @@ $('#resign').onclick=async()=>{if(!confirm('Resign this game?'))return;try{set((
 $('#draw').onclick=async()=>{try{set((await api('/api/chess/draw','POST',{id:gid,action:'offer'})).game)}catch(e){$('#err').textContent=e.message;toast(e.message)}};
 for(const [id,a] of [['#drAcc','accept'],['#drDec','decline']])$(id).onclick=async()=>{try{set((await api('/api/chess/draw','POST',{id:gid,action:a})).game)}catch(e){$('#err').textContent=e.message;toast(e.message)}};
 $('#cancel').onclick=async()=>{try{await api('/api/chess/cancel','POST',{id:gid});closeGame()}catch(e){$('#err').textContent=e.message}};
+/* Long-poll: the request carries the rev we already have; the server answers the instant the game changes (or after ~6 s), so the opponent's move shows up in well under a second. */
 async function poll(){
   clearTimeout(timer);if(!gid)return;
-  try{const d=await api('/api/chess/game?id='+gid);if(gid&&!busy)set(d.game)}
-  catch(e){if(e.status===401)return location.replace('login.html');if(e.status===404||e.status===403){toast(e.message);return closeGame()}}
-  if(gid)timer=setTimeout(poll,document.hidden?5000:(G&&G.status==='active'&&G.turn!==G.my_color)||(G&&G.status==='waiting')?1200:2500);
+  const my=++pollSeq,id=gid,rev=G&&G.id===id?G.rev:0;
+  try{const d=await api('/api/chess/game?id='+id+(rev?'&since='+rev+'&wait=1':''));if(my!==pollSeq||gid!==id)return;if(!busy)set(d.game)}
+  catch(e){if(my!==pollSeq)return;if(e.status===401)return location.replace('login.html');if(e.status===404||e.status===403){toast(e.message);return closeGame()}timer=setTimeout(poll,2000);return}
+  if(gid)timer=setTimeout(poll,document.hidden?1500:100);
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&gid)poll()});
 function set(g){G=g;snapAt=Date.now();if(!g.legal_moves.some(m=>sel&&m.startsWith(sel)))sel=null;render()}
@@ -57,7 +59,7 @@ function build(){
 function render(){
   if(!G)return;
   const b=$('#board');if(!b.children.length||b.dataset.flip!==String(isFlip()))build();
-  const live=rv===null||rv>=G.moves.length,pm=live?fenMap(G.fen):fenMap(G.places[rv]+' w'),lm=live?G.last_move:(rv>0?{from:G.moves[rv-1].uci.slice(0,2),to:G.moves[rv-1].uci.slice(2,4)}:null);
+  const live=rv===null||rv>=G.moves.length,pm=live?withOpt(fenMap(G.fen)):fenMap(G.places[rv]+' w'),lm=live?(opt?{from:opt.from,to:opt.to}:G.last_move):(rv>0?{from:G.moves[rv-1].uci.slice(0,2),to:G.moves[rv-1].uci.slice(2,4)}:null);
   b.classList.toggle('rv',!live);
   b.querySelectorAll('.gm-sq').forEach(el=>{
     const sq=el.dataset.sq;el.classList.toggle('last',!!lm&&(sq===lm.from||sq===lm.to));el.classList.toggle('sel',sel===sq);el.classList.toggle('chk',live&&G.in_check_square===sq);
@@ -71,7 +73,7 @@ function render(){
   $('#topS').classList.toggle('turn',G.status==='active'&&G.turn===top);$('#botS').classList.toggle('turn',G.status==='active'&&G.turn===bot);
   let s;if(G.status==='waiting')s='Waiting for an opponent to join…';
   else if(G.status==='finished')s=(G.winner?(G.winner==='white'?'White':'Black')+' wins. ':'')+(REASON[G.result_reason]||G.result_reason||'Game over');
-  else s=!mc?'Spectating':G.turn===mc?'Your move':'Opponent is thinking…';
+  else s=!mc?'Spectating':G.turn===mc&&!opt?'Your move':'Opponent is thinking…';
   const st=$('#stat');st.textContent=s;st.classList.toggle('end',G.status==='finished');
   const act=G.status==='active'&&mc,dr=G.draw;
   $('#resign').hidden=!act;$('#draw').hidden=!act||!!dr;$('#draw').textContent='Offer draw';
@@ -92,11 +94,11 @@ $('#cancel').hidden=G.status!=='waiting';
   clocks();
 }
 function clocks(){
-  if(!G)return;let w=G.white_time_ms,b=G.black_time_ms;
-  if(G.status==='active'){const el=Date.now()-snapAt;if(G.turn==='white')w=Math.max(0,w-el);else b=Math.max(0,b-el)}
+  if(!G)return;let w=G.white_time_ms,b=G.black_time_ms;const tn=opt?(G.my_color==='white'?'black':'white'):G.turn;
+  if(G.status==='active'){const el=Date.now()-snapAt;if(tn==='white')w=Math.max(0,w-el);else b=Math.max(0,b-el)}
   const top=G.my_color==='black'?'white':'black',v={white:w,black:b};
   for(const [id,c] of [['#topK',top],['#botK',top==='white'?'black':'white']]){const e=$(id);e.textContent=fmt(v[c]);e.classList.toggle('low',G.status==='active'&&v[c]<15000)}
-  if(G.status==='active'&&(G.turn==='white'?w:b)<=0&&!clocks.p){clocks.p=1;poll();setTimeout(()=>clocks.p=0,2000)}   // someone flagged: ask the server to settle it
+  if(G.status==='active'&&(tn==='white'?w:b)<=0&&!clocks.p){clocks.p=1;poll();setTimeout(()=>clocks.p=0,2000)}   // someone flagged: ask the server to settle it
 }
 setInterval(clocks,250);
 
@@ -108,7 +110,7 @@ $('#chatS').onclick=say;$('#chatI').addEventListener('keydown',e=>{if(e.key==='E
 $('#board').addEventListener('click',e=>{if(noClick)return;const el=e.target.closest('.gm-sq');if(el)tap(el.dataset.sq)});
 $('#board').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const el=e.target.closest('.gm-sq');if(el){e.preventDefault();tap(el.dataset.sq)}}});
 function tap(sq){
-  if(!G||G.status!=='active'||G.turn!==G.my_color||rv!==null)return;
+  if(!G||G.status!=='active'||G.turn!==G.my_color||rv!==null||opt)return;
   const pm=fenMap(G.fen),p=pm[sq],mine=p&&((p===p.toUpperCase())===(G.my_color==='white'));
   if(sel&&sel!==sq&&G.legal_moves.some(m=>m.startsWith(sel)&&m.slice(2,4)===sq)){
     const pawn=pm[sel]&&pm[sel].toLowerCase()==='p'&&(sq[1]==='8'||sq[1]==='1');
@@ -119,10 +121,18 @@ function tap(sq){
 }
 document.querySelectorAll('#promo [data-p]').forEach(b=>b.onclick=()=>{if(!pend)return;const m=pend;pend=null;$('#promo').hidden=true;send(m.from,m.to,b.dataset.p)});
 $('#promo').onclick=e=>{if(e.target.id==='promo'){pend=null;$('#promo').hidden=true}};
+function withOpt(pm){   // show my move on the board at once; the server's answer replaces it a moment later
+  if(!opt)return pm;const {from,to,promo}=opt,p=pm[from];if(!p)return pm;
+  const m={...pm},t=p.toLowerCase();delete m[from];
+  if(t==='k'&&Math.abs(FILES.indexOf(to[0])-FILES.indexOf(from[0]))===2){const r=from[1],ks=to[0]==='g',rf=(ks?'h':'a')+r,rt=(ks?'f':'d')+r;if(m[rf]){m[rt]=m[rf];delete m[rf]}}
+  if(t==='p'&&from[0]!==to[0]&&!pm[to])delete m[to[0]+from[1]];
+  m[to]=promo?(p===p.toUpperCase()?promo.toUpperCase():promo.toLowerCase()):p;return m;
+}
 async function send(from,to,promotion){
-  busy=true;sel=null;$('#err').textContent='';
-  try{set((await api('/api/chess/move','POST',{id:gid,from,to,promotion})).game)}
-  catch(e){$('#err').textContent=e.message;toast(e.message)}
+  const cap=!!fenMap(G.fen)[to];
+  busy=true;sel=null;$('#err').textContent='';opt={from,to,promo:promotion};sfx(cap?'cap':'move');lastN=G.moves.length+1;render();
+  try{const d=await api('/api/chess/move','POST',{id:gid,from,to,promotion});opt=null;set(d.game)}
+  catch(e){opt=null;lastN=G.moves.length;render();$('#err').textContent=e.message;toast(e.message)}
   finally{busy=false;poll()}
 }
 
@@ -139,7 +149,7 @@ $('#pgn').onclick=async()=>{if(!G)return;const t=pgn();try{await navigator.clipb
 /* ---------- drag and drop (tap-to-move still works) ---------- */
 let drag=null,noClick=false;
 $('#board').addEventListener('pointerdown',e=>{
-  if(e.button>0||!G||G.status!=='active'||G.turn!==G.my_color||rv!==null)return;
+  if(e.button>0||!G||G.status!=='active'||G.turn!==G.my_color||rv!==null||opt)return;
   const el=e.target.closest('.gm-sq');if(!el)return;const p=fenMap(G.fen)[el.dataset.sq];
   if(!p||((p===p.toUpperCase())!==(G.my_color==='white')))return;
   drag={sq:el.dataset.sq,x:e.clientX,y:e.clientY,on:false,id:e.pointerId,ghost:null};

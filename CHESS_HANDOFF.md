@@ -55,6 +55,16 @@ Verified: engine perft (start pos d3 = 8902, Kiwipete d3 = 97862, plus 2 more po
 - **Challenge a friend**: `POST /chess/new` accepts `to` (a friend's user id). `api.mjs` passes an `areFriends(id)` callback (mutual `fr:` lists) into `chessApi`; non-friends get 403. The table is reserved with `invite`/`inv` (same mechanism as rematch), the friend gets a `chess_challenge` bell notification ("X challenged you to chess", opens `games.html#<id>`), and it shows as "challenge" in their Open tables. Rematch index entries now carry `rem:1` so the lobby can tell rematch from challenge. UI: **Opponent** select in the New game card, filled from `/api/friends`.
 - SW cache `cc-v9`. `test/chess.mjs` gained challenge tests (`challenge tests passed`). Still **not browser-verified**.
 
+## Done in session 8: speed (real-time feel on Netlify)
+- **Long-poll instead of 1.2-2.5 s polling**: `GET /chess/game?id=&since=<rev>&wait=1` holds up to 6 s (`HOLD_MS`), re-reading the blob every 250 ms (`TICK_MS`), and answers the moment `rev` changes, a clock flags or an abort is due. Client re-polls right after each answer (`pollSeq` drops stale responses). Netlify Functions have no websockets, so this is the closest in-platform option.
+- **Optimistic moves**: the client draws your move at once (castling, en passant, promotion handled in `withOpt`) and the server reply replaces it; on error it snaps back.
+- **Fewer blob ops**: `settle` is read-only unless a game must actually be settled (was a read+write on every poll); `/chess/move` no longer does `load`+`settle` first (timeout/abort settled inside the same mutate), lobby-index keep-alive only every 10 min (`IDX_TOUCH`), index update and notification run in parallel; rematch now bumps `rev` so it wakes long-polls.
+- SW cache `cc-v10`. Tests: `long-poll + inline settle tests passed`. If true websockets are ever wanted: Ably/Pusher/Supabase Realtime publish from `chess-api.mjs` after each write (needs `connect-src` in netlify.toml).
+
+## Done in session 9: nothing is kept
+- A table (waiting or active) with nobody on it for 60 s (`WAIT_MS`/`STALE_MS`) is abandoned: removed from the lobby and its blob deleted on the next read of the lobby or game (`gone`/`drop`). Presence is the long-poll stamp (`seen`, every 15 s), which also keeps the lobby index entry alive. Joining an expired table fails ("expired").
+- Finished games live 10 min (`FIN_KEEP`, enough for rematch/PGN), then 404 and delete. `sweep.mjs` (every 15 min) removes whatever nobody read again.
+
 ## Still to do (updated)
 1. **Browser check** (no browser in the build env): two accounts, play, chat, rematch, challenge, drag on touch, all themes, phone width.
 2. Share a game into a channel as a "Join my chess table" card.

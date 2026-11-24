@@ -142,3 +142,43 @@ assert.ok(notes.some(n => n.type === 'chess_rematch' && n.ids[0] === 'f'));
   assert.equal(j.status, 'active'); assert.equal(j.inc, 2);
   console.log('challenge tests passed');
 }
+
+// long-poll: a held request wakes as soon as the opponent moves; a stale rev answers at once
+{
+  const P = { id: 'p', name: 'Pat' }, Q = { id: 'q', name: 'Quin' };
+  const gm = (await call(P, '/chess/new', 'POST', { color: 'white', minutes: 5 })).game;
+  await call(Q, '/chess/join', 'POST', { id: gm.id });
+  const cur = (await call(Q, '/chess/game', 'GET', {}, 'id=' + gm.id)).game;
+  let t0 = Date.now();
+  const held = call(Q, '/chess/game', 'GET', {}, 'id=' + gm.id + '&since=' + cur.rev + '&wait=1');
+  setTimeout(() => call(P, '/chess/move', 'POST', { id: gm.id, from: 'e2', to: 'e4' }), 120);
+  const woke = (await held).game;
+  assert.equal(woke.moves.length, 1); assert.ok(Date.now() - t0 < 1500, 'long-poll should wake fast');
+  t0 = Date.now();
+  const stale = (await call(Q, '/chess/game', 'GET', {}, 'id=' + gm.id + '&since=1&wait=1')).game;   // old rev: no waiting
+  assert.equal(stale.moves.length, 1); assert.ok(Date.now() - t0 < 300);
+  // a flagged mover is settled inside the move call itself
+  await call(Q, '/chess/move', 'POST', { id: gm.id, from: 'e7', to: 'e5' });
+  const raw = JSON.parse(mem.get('chess:g:' + gm.id)); raw.turnAt = Date.now() - 10 * 60e3; mem.set('chess:g:' + gm.id, JSON.stringify(raw));
+  const late = (await call(P, '/chess/move', 'POST', { id: gm.id, from: 'g1', to: 'f3' })).game;
+  assert.equal(late.status, 'finished'); assert.equal(late.result_reason, 'timeout'); assert.equal(late.winner, 'black');
+  console.log('long-poll + inline settle tests passed');
+}
+
+// abandonment: a table nobody has been on for 1 minute disappears; finished games are not kept
+{
+  const U = { id: 'u', name: 'Uma' }, W = { id: 'w', name: 'Wes' };
+  const old = (id, ms) => { const r = JSON.parse(mem.get('chess:g:' + id)); r.created = r.updated = Date.now() - ms; r.seen = { white: Date.now() - ms, black: Date.now() - ms }; mem.set('chess:g:' + id, JSON.stringify(r)); };
+  const age = (ms) => { const ix = JSON.parse(mem.get('chess:idx')); ix.games.forEach(x => { if (x.host.id === 'u') x.t = Date.now() - ms; }); mem.set('chess:idx', JSON.stringify(ix)); };
+  const t1 = (await call(U, '/chess/new', 'POST', { color: 'white', minutes: 5 })).game;
+  assert.equal((await call(W, '/chess/lobby')).open.filter(o => o.host === 'Uma').length, 1);
+  old(t1.id, 70e3); age(70e3);
+  assert.equal((await call(W, '/chess/lobby')).open.filter(o => o.host === 'Uma').length, 0, 'abandoned table leaves the lobby');
+  await assert.rejects(call(W, '/chess/join', 'POST', { id: t1.id }), /expired/);
+  await assert.rejects(call(U, '/chess/game', 'GET', {}, 'id=' + t1.id), /closed|not found/);
+  const t2 = (await call(U, '/chess/new', 'POST', { color: 'white', minutes: 5 })).game;
+  await call(W, '/chess/join', 'POST', { id: t2.id });
+  old(t2.id, 70e3); age(70e3);
+  await assert.rejects(call(W, '/chess/game', 'GET', {}, 'id=' + t2.id), /closed|not found/);
+  console.log('abandon tests passed');
+}

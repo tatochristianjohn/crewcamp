@@ -15,12 +15,12 @@ export default async () => {
   }
   console.log(`sweep: ${blobs.length} attachment(s) found, ${gone} expired removed`);
   // chess: drop finished/abandoned game blobs (lobby index entries already expire on their own). Only runs a read per game, so it is skipped when there are none.
-  const GAME_KEEP = 7 * 864e5, WAIT_KEEP = 864e5, ACTIVE_KEEP = 3 * 864e5;
+  const GAME_KEEP = 10 * 60e3, WAIT_KEEP = 2 * 60e3, ACTIVE_KEEP = 2 * 60e3;   // nothing is saved: abandoned tables go after ~1-2 min of nobody being there, finished games after 10 min
   const games = (await st.list({ prefix: 'chess:g:' })).blobs; let cg = 0;
   for (const b of games) {
     const g = await st.get(b.key, { type: 'json' }).catch(() => null);
     if (!g) continue;
-    const age = now - (g.updated || g.created || 0), lim = g.status === 'finished' ? GAME_KEEP : g.status === 'waiting' ? WAIT_KEEP : ACTIVE_KEEP;
+    const age = now - Math.max(g.updated || 0, g.created || 0, g.seen?.white || 0, g.seen?.black || 0), lim = g.status === 'finished' ? GAME_KEEP : g.status === 'waiting' ? WAIT_KEEP : ACTIVE_KEEP;
     if (age > lim) { await st.delete(b.key).catch(() => {}); cg++; }
   }
   console.log(`sweep: ${games.length} chess game(s) found, ${cg} removed`);
